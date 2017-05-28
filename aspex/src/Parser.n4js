@@ -1,0 +1,129 @@
+import {Category} from "Category";
+import {InputProcessor} from "InputProcessor";
+import {ProcessorState} from "InputProcessor";
+import {InputSource} from "InputSource";
+import {Lexer} from "Lexer";
+import {Document} from "Nodes";
+import {Element} from "Nodes";
+import {Token} from "Token";
+import {ExtensionContext} from "Extension";
+
+function last(s: string): string {
+	if (s) {
+		return s.charAt(s.length - 1);
+	}
+	return "";
+}
+
+export public class Parser extends InputProcessor {
+
+	lexer: Lexer;
+	eolCount = 0;
+	indentLevel: int = 0;
+
+	currentElement: Element;
+	cdataTarget: Element;
+
+	constructor(processorState: ProcessorState) {
+		super(processorState);
+		this.lexer = new Lexer(processorState);
+	}
+
+	parse(...inputSources: InputSource): Document {
+		this.lexer.addInputSource(inputSources);
+		let tokenEntry: IteratorEntry<Token>;
+		let document = new Document();
+		this.currentElement = document;
+		this.cdataTarget = document;
+
+		while (!(tokenEntry = this.lexer.next()).done) {
+			let token = tokenEntry.value;
+
+			if (token.category == Category.EOL) {
+
+				while (this.processorState.openInlineExtensions.length > 0) {
+					let ext = this.processorState.openInlineExtensions.pop();
+					ext.extension.closeElement(ext.element, this.createExtensionContext());
+				}
+
+				this.eolCount++;
+				if (this.eolCount == 2) {
+					if (this.cdataTarget) {
+						this.cdataTarget = undefined;
+					}
+				}
+				this.indentLevel = 0;
+				continue;
+			}
+			if (token.category == Category.INDENT) {
+				this.indentLevel++;
+				continue;
+			}
+			if (token.category == Category.CMD) {
+
+				let cmd = token.extension;
+
+				while (this.indentLevel < this.currentElement.indentLevel) {
+					this.currentElement = this.currentElement.parent;
+				}
+
+				let context = this.createExtensionContext();
+				this.currentElement = cmd.extension.createElement(context);
+				this.processorState.openBlockExtensions.push({extension: cmd.extension, element: this.currentElement});
+
+				this.cdataTarget = this.currentElement;
+				continue;
+
+			}
+			this.adjustCDataTarget();
+			if (this.eolCount == 1) {
+				this.cdataTarget.addCDATA(" ");
+			}
+			this.eolCount = 0;
+			this.cdataTarget.addCDATA(token.rawValue);
+		}
+
+		return document;
+	}
+
+	private adjustCDataTarget() {
+		if (this.indentLevel < this.currentElement.indentLevel) {
+			while (this.indentLevel < this.currentElement.indentLevel) {
+				this.currentElement = this.currentElement.parent;
+				this.cdataTarget = null;
+			}
+		}
+
+		if (this.indentLevel > this.currentElement.indentLevel) {
+			this.currentElement = new Element("pre", this.indentLevel, this.currentElement);
+			this.cdataTarget = this.currentElement;
+			// TODO switch parser and lexer to pre-formatting				
+		}
+
+		if (!this.cdataTarget) {
+
+			while (this.processorState.openBlockExtensions.length > 0) {
+				let ext = this.processorState.openBlockExtensions.pop();
+				ext.extension.closeElement(ext.element, this.createExtensionContext());
+			}
+
+			while (this.indentLevel < this.currentElement.indentLevel) {
+				this.currentElement = this.currentElement.parent;
+			}
+			this.currentElement = new Element("p", this.indentLevel, this.currentElement);
+			this.cdataTarget = this.currentElement;
+
+		}
+
+	}
+
+	createExtensionContext(): ExtensionContext {
+		return new ExtensionContext({
+				indentLevel: this.indentLevel,
+				parent: this.currentElement,
+				processorState: this.processorState,
+				inputSource: this.lexer.is
+			});
+	}
+
+}

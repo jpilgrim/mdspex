@@ -1,0 +1,349 @@
+import {Category} from "Category";
+import {CategorySwitch} from "Category";
+import {InputProcessor} from "InputProcessor";
+import {ProcessorState} from "InputProcessor";
+import {InputLocation} from "InputSource";
+import {InputSource} from "InputSource";
+import {CharacterToken} from "Token";
+import {Token} from "Token";
+import {Extension} from "Extension";
+import {ExtensionToken} from "Token";
+
+export public class Lexer extends InputProcessor implements Iterator<Token> {
+
+	inputSources: [InputSource] = [];
+	is: InputSource = null;
+	state: LexerState;
+	stateN: LexerState = new StateNewline(this);
+	stateS: LexerState = new StateSkippingSpaces(this);
+	stateM: LexerState = new StateMiddleOfLine(this);
+
+	constructor(processorState: ProcessorState) {
+		super(processorState);
+		this.state = this.stateN;
+	}
+
+	public addInputSource(inputSources: InputSource | [InputSource]) {
+		this.inputSources = this.inputSources.concat(inputSources);
+	}
+
+	public get location(): InputLocation {
+		if (this.is == null) {
+			return new InputLocation(0, 0, 0, "no source loaded");
+		}
+		return this.is.location;
+	}
+
+	public hasNext(): boolean {
+		if (this.is == null) {
+			this.nextInputSource();
+		}
+		if (this.is == null || !this.is.hasNext()) {
+			if (!this.nextInputSource()) {
+				return false;
+			}
+		}
+		return this.is.hasNext();
+	}
+
+	@Override
+	public next(): IteratorEntry<Token> {
+		if (this.hasNext()) {
+			let token = this.state.nextToken(this.nextChar());
+			if (token != undefined) {
+				return {done: false, value: token};
+			}
+		}
+		return {done: true, value: undefined};
+	}
+
+	nextChar(): string {
+		if (this.is == null) {
+			if (!this.nextInputSource()) {
+				throw new Error("No more input sources");
+			}
+		}
+		return this.is.nextChar();
+	}
+
+	/**
+	 * Consumes the given numberOfChars without switching to next input source.
+	 */
+	consume(numberOfChars=1): string {
+		return this.is.consume(numberOfChars);
+	}
+
+	peekChar(lookahead: int =0): string {
+		if (this.is == null) {
+			if (!this.nextInputSource()) {
+				throw new Error("No more input sources");
+			}
+		}
+		return this.is.peek(lookahead);
+	}
+
+	private nextInputSource(): boolean {
+		if (this.inputSources.length > 0) {
+			this.is = this.inputSources.shift();
+			this.changeToStateNewline();
+			return true;
+		}
+		return false;
+	}
+
+	nextNonSpace(): string {
+		var c: string;
+		do {
+			c = this.nextChar();
+		} while (this.isSpace(c));
+		return c;
+	}
+
+	skipSpaces() {
+		while (this.hasNext()) {
+			let c = this.is.peek();
+			if (!this.isSpace(c)) {
+				return;
+			}
+			this.is.consume();
+		}
+	}
+
+	isSpace(c: string): boolean {
+		return this.processorState.catcodeMap.isCategory(c, Category.SPACE);
+	}
+	isEOL(c: string): boolean {
+		return this.processorState.catcodeMap.isCategory(c, Category.EOL);
+	}
+	isLetter(c: string): boolean {
+		return this.processorState.catcodeMap.isCategory(c, Category.LETTER);
+	}
+	isOther(c: string): boolean {
+		return this.processorState.catcodeMap.isCategory(c, Category.OTHER);
+	}
+	isCmd(c: string): boolean {
+		return this.processorState.catcodeMap.isCategory(c, Category.CMD);
+	}
+
+	changeToStateNewline() {
+		this.state = this.stateN;
+	}
+
+	changeToStateSkippingSpaces() {
+		this.state = this.stateS;
+		this.skipSpaces();
+	}
+
+	changeToStateMiddleOfLine() {
+		this.state = this.stateM;
+	}
+
+}
+
+abstract class LexerState extends CategorySwitch<string, Token> {
+
+	/**
+	 * The owning lexer
+	 */
+	@Final
+	protected lexer: Lexer;
+
+	constructor(lexer: Lexer) {
+		this.lexer = lexer;
+	}
+
+	nextToken(c: string): Token {
+		let cat = this.lexer.processorState.catcodeMap.category(c);
+		return this.switchCategory(cat, c);
+	}
+
+	/**
+	 * Ignored characters; processor remains in the same state.
+	 */
+	@Override
+	protected caseIgnore(input: string): Token {
+		return this.lexer.next().value;
+	}
+
+	/**
+	 * A space character is ignored in state S, in state N special handling is done.
+	 * (and the state does not change);
+	 */
+	@Override
+	protected caseSpace(input: string): Token {
+		return this.nextToken(this.lexer.nextNonSpace());
+	}
+
+//	/**
+//	 * cf 2.7.8 14
+//	 */
+//	@Override
+//	protected Token caseComment(Character input) {
+//		char c;
+//		final StringBuilder strb = new StringBuilder();
+//		while (this.lexer.hasNext()) {
+//			c = this.lexer.nextChar();
+//			if (this.lexer.getCatcodeMap().isCategory(c, Category.EOL)) {
+//				break;
+//			}
+//			strb.append(c);
+//		}
+//		inputProcessor.changeToStateNewline();
+//		return new CommentToken(strb.toString());
+//	}
+	/**
+	 * cf 2.7.9 15
+	 */
+	@Override
+	protected caseInvalid(input: string): Token {
+		throw new Error("Invalid character at " + this.lexer.location);
+	}
+
+	/**
+	 * cf. 2.7.2 1–4, 7–8, 11–13
+	 */
+	@Override
+	protected defaultCase(category: Category, input: string): Token {
+		return new CharacterToken(input, category);
+	}
+
+}
+
+/**
+ * cf 2.5.1 State N
+ */
+class StateNewline extends LexerState {
+
+	@Override
+	protected caseEOL(input: string): Token {
+		return Token.EOL(input);
+	}
+
+	@Override
+	protected caseSpace(input: string): Token {
+		let ahead = 0;
+
+		// lines containing only spaces are treated as empty lines
+		while (this.lexer.isSpace(this.lexer.peekChar(ahead))) {
+			ahead++;
+		}
+		if (this.lexer.isEOL(this.lexer.peekChar(ahead))) {
+			this.lexer.consume(ahead + 1);
+			return Token.EOL(input);
+		}
+
+		// tab
+		if (input === '\t') {
+			return Token.INDENT(input);
+		}
+		// or 4 spaces
+		if (input === ' ' && this.lexer.peekChar(0) == ' ' && this.lexer.peekChar(1) == ' ' && this.lexer
+			.peekChar(2) == ' ') {
+			this.lexer.consume(3);
+			return Token.INDENT(input);
+		}
+
+		// skip 1-3 spaces at beginning of block
+		this.lexer.skipSpaces();
+		if (this.lexer.hasNext()) return this.lexer.next().value; else return Token.SPACE(input);
+	}
+
+	@Override
+	protected caseLetter(input: string): Token {
+		let ahead = 0;
+		while ( this.lexer.isLetter(this.lexer.peekChar(ahead))) ahead++;
+		if (this.lexer.isCmd(this.lexer.peekChar(ahead)) && !this.lexer.isCmd(this.lexer.peekChar(ahead + 1))) {
+			let command = input + this.lexer.consume(ahead);
+
+			let ext = this.lexer.processorState.blockNameExtensions.get(command);
+			if (ext) {
+				this.lexer.consume();
+				return new ExtensionToken(command, Category.CMD, {extension: ext}) ;
+			}
+
+		}
+		return this.defaultCase(Category.LETTER, input);
+	}
+
+	@Override
+	protected caseOther(input: string): Token {
+		
+		
+		let lastStartedInlineExt = this.lexer.processorState.lastOpenInlineExtensions;
+		if (lastStartedInlineExt && lastStartedInlineExt.extension.ctrlEnd==input) {
+			let length = lastStartedInlineExt.extension.matchCtrlEnd(this.lexer.is.restOfLine);
+			if (length) {
+				let ctrl = input + this.lexer.consume(length);
+				return new ExtensionToken(ctrl, Category.CTRL, lastStartedInlineExt);
+			}
+		} 
+		
+
+		let matchingExtensions = this.lexer.processorState.blockCtrlExtensions.get(input);
+		if (matchingExtensions) {
+			let maxLength = 0;
+			let longest: [Extension] = [];
+			let line = this.lexer.is.restOfLine;
+			for (let ext of matchingExtensions) {
+					let length = ext.matchCtrlStart(line);
+					if (length > maxLength) {
+						longest = [ext];
+					} else if (length == maxLength) {
+						longest.push(ext);
+					}
+			}
+			if (longest.length == 1) {
+				let ctrl = input + this.lexer.consume(maxLength);
+				return new ExtensionToken(ctrl, Category.CTRL, {extension: longest[0]});
+			}
+			if (longest.length > 1) {
+				throw new Error("Ambiguous extension: Found " + longest.map(ext => ext.name).join());
+			}
+		}
+
+		return this.defaultCase(Category.LETTER, input);
+	}
+
+	@Override
+	protected defaultCase(category: Category, input: string): Token {
+		this.lexer.changeToStateMiddleOfLine();
+		return this.lexer.state.switchCategory(category, input);
+	}
+}
+
+class StateMiddleOfLine extends LexerState {
+
+	@Override
+	protected caseEOL(input: string): Token {
+		this.lexer.changeToStateNewline();
+		return Token.EOL(input);
+	}
+
+	/**
+	 * cf 2.7.7 10
+	 */
+	@Override
+	protected caseSpace(input: string): Token {
+		this.lexer.changeToStateSkippingSpaces();
+		return Token.SPACE(input);
+	}
+}
+
+class StateSkippingSpaces extends LexerState {
+
+	@Override
+	protected caseEOL(input: string): Token {
+		this.lexer.changeToStateNewline();
+		return this.lexer.next().value;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	protected defaultCase(category: Category, input: string): Token {
+		this.lexer.changeToStateMiddleOfLine();
+		return this.lexer.state.switchCategory(category, input);
+	}
+
+}

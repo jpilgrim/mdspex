@@ -1,0 +1,20 @@
+ProjectId: aspex.tests
+ProjectType: test
+ProjectVersion: 0.0.1
+VendorId: de.jevopi
+//output folder (e.g. compiled files, etc.)
+Output: "src-gen"
+//define project source folders
+Sources {
+    //those are your project test sources (usually N4JS code)
+    test {
+        "test"
+    }
+}
+TestedProjects {
+    aspex
+}
+ProjectDependencies {
+    eu.numberfour.mangelhaft,
+    eu.numberfour.mangelhaft.assert
+}

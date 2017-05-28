@@ -1,0 +1,87 @@
+import {Category} from "Category";
+import {shortCategory} from "Category";
+import {ExtensionElement} from "InputProcessor";
+
+
+
+export public abstract class Token {
+	
+	static EOL(character:string): Token {
+		return new CharacterToken(character, Category.EOL);	
+	}
+	static INDENT(character:string): Token {
+		return new CharacterToken(character, Category.INDENT);	
+	}
+	static SPACE(character:string): Token {
+		return new CharacterToken(character, Category.SPACE);	
+	}
+	static LETTER(character:string): Token {
+		return new CharacterToken(character, Category.LETTER);	
+	}
+	
+	public abstract get category(): Category
+
+	public abstract get rawValue(): string
+	
+	@Override
+	public toString(): string {
+		switch (this.category) {
+			case Category.INDENT: return "T";
+			case Category.SPACE: return "S";
+			case Category.EOL: return "N";
+		}
+		return shortCategory(this.category) + "(" + this.rawValue + ")"; 
+	}
+	/**
+	 * Returns true if token is expandable. This base implementation always return false, subclasses 
+	 * have to override it accordingly.
+	 */
+	public get isExpandable(): boolean {
+		return false;
+	}
+
+	/**
+	 * Returns null for non-macros.
+	 */
+	public get sequence(): string {
+		return null;
+	}
+	
+	/**
+	 * Set if token is to be handled by an extension, undefined by default.
+	 */
+	public get extension(): ExtensionElement { return undefined }
+}
+
+export public class CharacterToken extends Token {
+	
+	@Final
+	character: string;
+
+	@Override
+	@Final
+	public category: Category;
+
+	public constructor(character: string, category: Category) {
+		this.character = character;
+		this.category = category;
+	}
+
+	@Override
+	public get rawValue(): string {
+		return this.character;
+	}
+}
+
+export public class ExtensionToken extends CharacterToken {
+	
+	@Final
+	@Override
+	public extension: ExtensionElement;
+	
+	public constructor(character: string, category: Category, extension: ExtensionElement) {
+		super(character, category);
+		this.extension = extension;
+	}
+}
+

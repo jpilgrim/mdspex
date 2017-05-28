@@ -1,0 +1,102 @@
+import { Assert } from "n4/mangel/assert/Assert"
+import {InputSource} from "InputSource";
+import {ProcessorState} from "InputProcessor";
+import {Lexer} from "Lexer";
+import {Token} from "Token";
+
+export public class LexerTest {
+	
+	protected  assertTokens(expectedTokenString: string, lexer: Lexer) {
+		Assert.equal(this.tokenString(lexer), expectedTokenString);
+	}
+
+	tokenString(tokens: Iterator<Token>): string {
+		let tokenStrings: [string] = []
+		let token: IteratorEntry<Token>;
+		while (!(token = tokens.next()).done) {
+			tokenStrings.push(token.value.toString())
+		}
+		return tokenStrings.join(",");
+	}
+	
+	@Test
+	public testEmpty() {
+		let p = new Lexer(new ProcessorState());
+		p.addInputSource(new InputSource("test", ""));
+		this.assertTokens("", p);
+	}
+
+	@Test
+	public testSingleLetter() {
+		let p = new Lexer(new ProcessorState());
+		p.addInputSource(new InputSource("test", "x"));
+		this.assertTokens("L(x)", p);
+	}
+
+	@Test
+	public testLetters() {
+		let p = new Lexer(new ProcessorState());
+		p.addInputSource(new InputSource("test", "abc"));
+		this.assertTokens("L(a),L(b),L(c)", p);
+	}
+
+	@Test
+	public testLettersAndSpaces() {
+		let p = new Lexer(new ProcessorState());
+		p.addInputSource(new InputSource("test", "ab  c"));
+		this.assertTokens("L(a),L(b),S,L(c)", p);
+	}
+
+	@Test
+	public testLettersAndSpacesAtEnd() {
+		let p = new Lexer(new ProcessorState());
+		p.addInputSource(new InputSource("test", "abc  "));
+		this.assertTokens("L(a),L(b),L(c),S", p);
+	}
+	
+	@Test
+	public testIndent() {
+		let p = new Lexer(new ProcessorState());
+		p.addInputSource(new InputSource("test", "    abc"));
+		this.assertTokens("T,L(a),L(b),L(c)", p);
+	}
+
+	@Test
+	public testIndent2() {
+		let p = new Lexer(new ProcessorState());
+		p.addInputSource(new InputSource("test", "        abc"));
+		this.assertTokens("T,T,L(a),L(b),L(c)", p);
+	}
+	
+	@Test
+	public testIndentAndSpaces() {
+		let p = new Lexer(new ProcessorState());
+		p.addInputSource(new InputSource("test", "      abc"));
+		this.assertTokens("T,L(a),L(b),L(c)", p);
+	}
+	
+	@Test
+	public testNewlines() {
+		let p = new Lexer(new ProcessorState());
+		p.addInputSource(new InputSource("test", "a\n    b\n\n    c"));
+		this.assertTokens("L(a),N,T,L(b),N,N,T,L(c)", p);
+	}
+	
+	@Test
+	public testMultipleNewlines() {
+		let p = new Lexer(new ProcessorState());
+		p.addInputSource(new InputSource("test", "a\n    b\n\n\n    c"));
+		this.assertTokens("L(a),N,T,L(b),N,N,N,T,L(c)", p);
+	}
+	
+	@Test
+	public testNewlinesAndTabs() {
+		let p = new Lexer(new ProcessorState());
+		p.addInputSource(new InputSource("test", "a\n    \nb"));
+		this.assertTokens("L(a),N,N,L(b)", p);
+	}
+
+		
+
+}
+//right click this module and select "Run As -> Test in Node.js" to see the test results

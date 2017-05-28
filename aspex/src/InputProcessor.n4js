@@ -1,0 +1,69 @@
+import {CatcodeMap} from "Category";
+import {Extension} from "Extension";
+import {Element} from "Nodes";
+
+export public interface ~ExtensionElement {
+	extension: Extension;
+	element?: Element;
+}
+
+export public class ProcessorState {
+
+	@Final
+	catcodeMap = new CatcodeMap();
+
+	@Final
+	blockNameExtensions = new Map<string, Extension>();
+
+	@Final
+	blockCtrlExtensions = new Map<string, [Extension]>();
+
+	@Final
+	openInlineExtensions: [ExtensionElement] = [];
+
+	@Final
+	openBlockExtensions: [ExtensionElement] = [];
+
+	public addExtensions(extensions: [Extension]) {
+		for (let ext of extensions) {
+			if (ext.block) {
+				if (ext.refByName) {
+					this.blockNameExtensions.set(ext.name, ext);
+				}
+				if (ext.ctrlStart) {
+					let extsWithStart = this.blockCtrlExtensions.get(ext.ctrlStart);
+					if (extsWithStart) {
+						if (extsWithStart.find(other => other.name == ext.name)) {
+							throw new Error("Duplicate control extension " + ext.name + ".");
+						}
+					} else {
+						extsWithStart = [];
+						this.blockCtrlExtensions.set(ext.ctrlStart, extsWithStart);
+					}
+					extsWithStart.push(ext);
+				}
+			}
+		}
+	}
+
+	get lastOpenInlineExtensions(): ExtensionElement {
+		return this.openInlineExtensions ? this
+			.openInlineExtensions[this.openInlineExtensions.length - 1] : undefined;
+	}
+
+	get lastOpenBlockExtensions(): ExtensionElement {
+		return this.openBlockExtensions ? this
+			.openBlockExtensions[this.openBlockExtensions.length - 1] : undefined;
+	}
+
+}
+
+export public class InputProcessor {
+
+	@Final
+	protected processorState: ProcessorState;
+	constructor(processorState: ProcessorState) {
+		this.processorState = processorState;
+	}
+
+}

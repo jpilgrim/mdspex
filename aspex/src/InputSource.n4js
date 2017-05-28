@@ -1,0 +1,141 @@
+/**
+ * InputSource for Lexer
+ */
+export public class InputSource {
+
+	/**
+	 * Name of the input source for error messages.
+	 */
+	@Final
+	name: string;
+
+	private _lineNumber = 0;
+	private _lineOffset = 0;
+
+	@Final
+	sequence: string;
+	/** The index used to traverse input source */
+	private _index = 0;
+
+	/** The index of the last returned char */
+	private _currentIndex = -1;
+
+	private _lineStart = 0;
+	private _lineEnd = 0;
+
+	public constructor(name: string, sequence: string) {
+		this.name = name;
+		this.sequence = sequence;
+	}
+
+	public hasNext(lookahead: int = 0): boolean {
+		return this._index + lookahead < this.sequence.length;
+	}
+
+	/**
+	 * Returns the character at given lookahead without consuming it. If end of 
+	 * input source is reached, an empty string is returned.
+	 */
+	public peek(lookahead: int = 0): string {
+		return this.sequence.charAt(this._index + lookahead);
+	}
+
+	public consume(numberOfChars: int = 1): string {
+		if (numberOfChars <= 0) {
+			return "";
+		}
+		for (let i = 0; i < numberOfChars; i++) {
+			this.nextChar();
+		}
+		return this.sequence.substring(this.index - numberOfChars, this.index);
+	}
+
+	/**
+	 * @throw Throws an error if no more chars are available.
+	 */
+	public nextChar(): string {
+		this._currentIndex = this._index;
+		let c = this.sequence.charAt(this._index++);
+		if (c.length === 0) {
+			throw new Error("End of '" + this.name + "' reached, last position: " + this.lineNumber + ":" + this
+			.lineOffset);
+		}
+		if (c == '\n') {
+			this._lineNumber++;
+			this._lineOffset = 0;
+			this._lineStart = this._index;
+			if (this.peek() == '\r') this._lineStart++;
+			this._lineEnd = this._lineStart + 1;
+			while (this._lineEnd < this.sequence.length
+			&& this.sequence.charAt(this._lineEnd) != '\n' && this.sequence.charAt(this._lineEnd) != '\r') {
+				this._lineEnd++;
+			}
+		} else {
+			this._lineOffset++;
+		}
+		return c;
+
+	}
+	
+	public get line(): string {
+		return this.sequence.substring(this._lineStart, this._lineEnd);
+	}
+
+	public get restOfLine(): string {
+		return this.sequence.substring(this._currentIndex, this._lineEnd);
+	}
+
+	get index(): int {
+		return this._index;
+	}
+
+	get lineNumber(): int {
+		return this._lineNumber;
+	}
+
+	get lineOffset(): int {
+		return this._lineOffset;
+	}
+
+	get location(): InputLocation {
+		return new InputLocation(this.index, this.lineNumber + 1, this.lineOffset - 1, this.name);
+	}
+
+}
+
+/**
+ * Location in input, used for error messages.
+ */
+export public class InputLocation {
+
+	@Final
+	absOffset: int;
+
+	@Final
+	lineNumber: int;
+
+	@Final
+	lineOffset: int;
+
+	@Final
+	fileName: string;
+
+	public constructor(absOffset: int, lineNumber: int, lineOffset: int, fileName: string = null) {
+		this.absOffset = absOffset;
+		this.lineNumber = lineNumber;
+		this.lineOffset = lineOffset;
+		this.fileName = fileName;
+	}
+
+	@Override
+	public toString(): string {
+		var s = "";
+		if (this.fileName) {
+			s = s + this.fileName + ":";
+		}
+		s = s + this.lineNumber + ", " + this.lineOffset;
+		return s;
+	}
+
+}
+

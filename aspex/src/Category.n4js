@@ -1,0 +1,254 @@
+export public enum Category {
+	/**
+	 * Suffix identifying commands, ":" by default. The token value contains the command without the suffix.
+	 */
+	CMD,
+	/**
+	 * Control sequence, "" by default (used for #, _, * etc. later on)
+	 */
+	CTRL,
+
+	/**
+	 * End of line, '\n' by default, '\r' is ignored (but added to EOL token)
+	 */
+	EOL,
+
+	/**
+	 * Ignore, character 0
+	 */
+	IGNORE,
+
+	/**
+	 * Invalid character
+	 */
+	INVALID,
+
+	/**
+	 * Tabs and four spaces at beginning of line. 
+	 * This category is the only for which the characters cannot be changed. 
+	 * It is produced by the lexer based on the current state.
+	 */
+	INDENT,
+
+	/**
+	 * Space character including tabs if not at beginning of line, not newline!
+	 */
+	SPACE,
+
+	/**
+	 * a-z, A-Z, umlauts etc.
+	 */
+	LETTER,
+
+	/**
+	 * Digits, punctuation and other special characters
+	 */
+	OTHER,
+
+	/**
+	 * Tex: Escape character, '\' by default
+	 */
+	TEX_ESC,
+
+	/**
+	 * Tex: Beginning of group {
+	 */
+	TEX_BEGINGROUP,
+
+	/**
+	 * Tex: End of group }
+	 */
+	TEX_ENDGROUP,
+
+	/**
+	 * Tex: Parameter character #
+	 */
+	TEX_PARAM,
+
+	/**
+	 * Tex: Superscript ^
+	 */
+	TEX_SUPER,
+
+	/**
+	 * Tex: Subscript _
+	 */
+	TEX_SUB
+}
+
+export public function shortCategory(cat: Category): string {
+	switch (cat) {
+		case Category.LETTER: return 'L';
+		case Category.OTHER: return 'O';
+		case Category.SPACE: return 'S';
+		default: return cat.name.substring(0, 3);
+	}
+}
+
+const defaultCharacters = new Map<Category, string>([
+	
+		[Category.CMD, ':'],
+		[Category.CTRL, []],
+		[Category.EOL, '\n'],
+		[Category.IGNORE, String.fromCharCode(0)],
+		[Category.INVALID, String.fromCharCode(127)],
+		[Category.SPACE, ' '],
+		[Category.LETTER, 'a'],
+		[Category.OTHER, '.'],
+		[Category.TEX_ESC, '\\'],
+		[Category.TEX_BEGINGROUP, '{'],
+		[Category.TEX_ENDGROUP, '}'],
+		[Category.TEX_SUPER, '^'],
+		[Category.TEX_SUB, '_'],
+	] as Iterable<Iterable2<Category, string>>);
+
+export public class CategorySwitch <INPUT, RETURN> {
+
+	public switchCategory(cat: Category, input: INPUT): RETURN {
+		switch (cat) {
+			case Category.CMD:
+				return this.caseCmd(input);
+			case Category.CTRL:
+				return this.caseCtrl(input);
+			case Category.EOL:
+				return this.caseEOL(input);
+			case Category.IGNORE:
+				return this.caseIgnore(input);
+			case Category.INVALID:
+				return this.caseInvalid(input);
+			case Category.LETTER:
+				return this.caseLetter(input);
+			case Category.OTHER:
+				return this.caseOther(input);
+			case Category.INDENT:
+				return this.caseIndent(input);
+			case Category.SPACE:
+				return this.caseSpace(input);
+			case Category.TEX_ESC:
+				return this.caseTexEsc(input);
+			case Category.TEX_BEGINGROUP:
+				return this.caseTexBeginGroup(input);
+			case Category.TEX_ENDGROUP:
+				return this.caseTexEndGroup(input);
+			case Category.TEX_SUPER:
+				return this.caseTexSuper(input);
+			case Category.TEX_SUB:
+				return this.caseTexSub(input);
+			default:
+				return this.defaultCase(cat, input);
+
+		}
+	}
+
+	protected caseCmd(input: INPUT): RETURN {
+		return this.defaultCase(Category.CMD, input);
+	}
+	protected caseCtrl(input: INPUT): RETURN {
+		return this.defaultCase(Category.CTRL, input);
+	}
+
+	protected caseEOL(input: INPUT): RETURN {
+		return this.defaultCase(Category.EOL, input);
+	}
+
+	protected caseIgnore(input: INPUT): RETURN {
+		return this.defaultCase(Category.IGNORE, input);
+	}
+	protected caseInvalid(input: INPUT): RETURN {
+		return this.defaultCase(Category.INVALID, input);
+	}
+	protected caseIndent(input: INPUT): RETURN {
+		return this.defaultCase(Category.INDENT, input);
+	}
+	protected caseSpace(input: INPUT): RETURN {
+		return this.defaultCase(Category.SPACE, input);
+	}
+	protected caseLetter(input: INPUT): RETURN {
+		return this.defaultCase(Category.LETTER, input);
+	}
+
+	protected caseOther(input: INPUT): RETURN {
+		return this.defaultCase(Category.OTHER, input);
+	}
+
+	protected caseTexEsc(input: INPUT): RETURN {
+		return this.defaultCase(Category.TEX_ESC, input);
+	}
+
+	protected caseTexBeginGroup(input: INPUT): RETURN {
+		return this.defaultCase(Category.TEX_BEGINGROUP, input);
+	}
+
+	protected caseTexEndGroup(input: INPUT): RETURN {
+		return this.defaultCase(Category.TEX_ENDGROUP, input);
+	}
+
+	protected caseTexSuper(input: INPUT): RETURN {
+		return this.defaultCase(Category.TEX_SUPER, input);
+	}
+
+	protected caseTexSub(input: INPUT): RETURN {
+		return this.defaultCase(Category.TEX_SUB, input);
+	}
+
+	protected defaultCase(category: Category, input: INPUT): RETURN {
+		return null;
+	}
+}
+
+function isLetter(c: string) {
+	if (c.length != 1) {
+		return false;
+	}
+	// latin  lat ext+ipa  diacr. rem.  the rest..
+	return /[a-zA-Z\u00BC-\u02AF\u0363-\u036F\u0370-\uFFFF]/.test(c);
+}
+
+export public class CatcodeMap {
+
+	@Final
+	charToCatcode = new Map<Category, Set<string>>();
+
+	public constructor() {
+		defaultCharacters.forEach((def, cat) => {
+				let set = new Set<string>();
+				set.add(def);
+				this.charToCatcode.set(cat, set);
+			});
+	}
+
+	public isCategory(c: string, cat: Category): boolean {
+		if (this.charToCatcode.get(cat).has(c)) {
+			return true;
+		}
+		if (cat == Category.LETTER && isLetter(c)) {
+			return true;
+		}
+		return cat == Category.OTHER;
+	}
+
+	public category(c: string): Category {
+
+		for (var [cat, chars] of this.charToCatcode) {
+			if (chars.has(c)) {
+				return cat;
+			}
+		}
+		if (isLetter(c)) {
+			return Category.LETTER;
+		}
+		return Category.OTHER;
+	}
+
+	/**
+	 * Sets the category of a character, similar to tex command {@code \catcode}
+	 */
+	public catcode(c: string, newCategory: Category) {
+		let oldCat = this.category(c);
+		if (oldCat != newCategory) {
+			this.charToCatcode.get(newCategory).add(c);
+			this.charToCatcode.get(oldCat).delete(c);
+		}
+	}
+}
+

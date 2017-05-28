@@ -1,0 +1,251 @@
+import {Element} from "Nodes";
+import {ProcessorState} from "InputProcessor";
+import {InputSource} from "InputSource";
+
+
+export public class ExtensionContext {
+
+	@Final
+	public indentLevel: int;
+
+	@Final
+	public parent: Element;
+
+	@Final
+	public processorState: ProcessorState;
+
+	@Final
+	public inputSource: InputSource;
+
+	constructor(@Spec spec: ~i~this) {}
+
+	public get line(): string {
+		return this.inputSource.line;
+	}
+
+	public get restOfLine(): string {
+		return this.inputSource.restOfLine;
+	}
+}
+
+export public interface ~Extension {
+
+	/**
+	 * Name of extension.
+	 */
+	get name(): string
+
+	/**
+	 * True if extension can be referenced by name (followed by command suffix, ":" by default).
+	 * E.g., if name is "INFO", if refByName is true, the extension is used via "INFO:".
+	 */
+	get refByName(): boolean
+
+	/**
+	 * True if extension is a block extension. If false, it is inline. An extension cannot be both.
+	 */
+	get block(): boolean
+
+	/**
+	 * Control-character(s) which is used to identify whether ctrlMatch is called for further evaluation. 
+	 * If ctrlStart is undefined or empty, the extension can only be referenced by name. The returned
+	 * character must be of Categegory "OTHER".
+	 */
+	get ctrlStart(): string
+
+	/**
+	 * Called if ctrlStart is found by lexer. This method is called with current line (starting with ctrlStart).
+	 * It returns the length of the match, if any, or 0 otherwise. If multiple extension
+	 * match, the one with the longer match one is chosen. 
+	 */
+	matchCtrlStart(line: string): int
+
+	/**
+	 * Control-character(s) which is used to identify whether ctrlMatchEnd is called for further evaluation. 
+	 * If ctrlEnd is undefined or empty, the extension can only be referenced by name or doesn't need an end.
+	 * Note that only extensions are queried which have been started (and not yet ended).
+	 */
+	get ctrlEnd(): string
+
+	/**
+	 * Called if ctrlEnd is found by lexer. This method is called with current line (starting with ctrlEnd).
+	 * It returns the length of the match, if any, or 0 otherwise. Only the last started (but not yet ended)
+	 * extension is called. All inline extensions automatically end at end of line.
+	 */
+	matchCtrlEnd(line: string): int
+
+	/**
+	 * Creates the element.
+	 */
+	createElement(context: ExtensionContext): Element
+
+	/**
+	 * Close element previously created with createElement. This method is only called if ctrlEnd returns not undefined.
+	 */
+	closeElement(element: Element, context: ExtensionContext)
+}
+
+/**
+ * Default implementation of Extension.
+ */
+export public abstract class AbstractExtension implements Extension {
+
+	/** Returns false by default. */
+	@Override
+	public get refByName(): boolean {
+		return false
+	}
+
+	/** Returns true by default. */
+	@Override
+	public get block(): boolean {
+		return true
+	}
+
+	/** Returns undefined by default, i.e., extension cannot be referenced by control sequence. */
+	@Override
+	public get ctrlStart(): string {
+		return undefined
+	}
+
+	/** Returns 0 by default. */
+	@Override
+	public matchCtrlStart(line: string): int {
+		return 0
+	}
+
+	/** Returns undefined by default, i.e., extension has no explicit end character. */
+	@Override
+	public get ctrlEnd(): string {
+		return undefined
+	}
+
+	/**
+	 * Returns 0 by default. 
+	 */
+	@Override
+	public matchCtrlEnd(line: string): int {
+		return 0
+	}
+
+	/**
+	 * Creates element with name and appends it to the parent element with given indentation.
+	 */
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		return new Element(this.name, context.indentLevel, context.parent);
+	}
+
+	/**
+	 * Does nothing by default.
+	 */
+	@Override
+	public closeElement(element: Element, context: ExtensionContext) {
+		// nothing by default
+	}
+
+}
+
+export public class NamedBlockCommand extends AbstractExtension {
+
+	@Override @Final
+	public name: string;
+	constructor(name: string) {
+		this.name = name;
+	}
+
+	@Override
+	public get refByName(): boolean {
+		return true
+	}
+
+}
+
+export public class ATXHeading extends AbstractExtension {
+
+	@Override
+	public get ctrlStart(): string {
+		return "#"
+	}
+
+	@Override
+	public get name(): string {
+		return "ATXHeading"
+	}
+
+	/**
+	 * Returns level of heading (1-6).
+	 */
+	@Override
+	public matchCtrlStart(line: string): int {
+		let res = line.match(/^#{1,6}\s/);
+		// [ '###### ', index: 0, input: '###### Hello' ]
+		if (res) {
+			return res[0].length - 1;
+		}
+		return 0;
+	}
+
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		let level = this.matchCtrlStart(context.restOfLine);
+		return new Element("H" + level, context.indentLevel, context.parent);
+	}
+}
+
+export public class InlineFormatting extends AbstractExtension {
+	
+	@Final ctrlChar: string;
+	@Override
+	@Final public name: string;
+	
+	constructor(ctrlChar: string, name: string) {
+		this.ctrlChar = ctrlChar;
+		this.name = name;
+	}
+	
+	@Override
+	public get ctrlStart(): string {
+		return this.ctrlChar;
+	}
+	@Override
+	public get ctrlEnd(): string {
+		return this.ctrlChar;
+	}
+	
+	@Override
+	public get block(): boolean {
+		return false
+	}
+
+	@Override
+	public matchCtrlStart(line: string): int {
+		if (line.startsWith(this.ctrlStart)) {
+			return 1;
+		}
+		return 0;
+	}
+
+	@Override
+	public matchCtrlEnd(line: string): int {
+		return this.matchCtrlStart(line);
+	}
+
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		return new Element(this.name, context.indentLevel, context.parent);
+	}
+}
+
+export public class DefaultExtensions {
+
+	extensions: [Extension];
+	constructor() {
+		this.extensions = ["NOTE", "INFO", "WARNING", "TODO"].map(name => new NamedBlockCommand(name));
+		this.extensions.push(new ATXHeading());
+		this.extensions.push(new InlineFormatting('*', 'strong'));
+		this.extensions.push(new InlineFormatting('_', 'em'));
+		
+	}
+
+}

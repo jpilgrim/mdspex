@@ -1,0 +1,117 @@
+
+
+export public abstract class Node {
+	@Final public parent: Element;
+	
+	startOffset: int;
+	endOffset: int;
+
+	/**
+	 * Creates this node with given parent and add this node to parent's child nodes.
+	 */
+	constructor(parent: Element) {
+		if (this instanceof Document) {
+			return;
+		}
+		
+		if (!parent) {
+			throw new Error("node requires a parent");
+		}
+		
+		this.parent = parent;
+		if (!parent.nodes) {
+			parent.nodes = [this];
+		} else {
+			parent.nodes.push(this);
+		}
+
+	}
+
+	public abstract toXML(indent=0): string
+}
+
+const TAB = "    ";
+
+export public class Element extends Node {
+	@Final name: string;
+	@Final indentLevel: int;
+
+	id: string;
+	attributes: [Attribute];
+	nodes: [Node];
+	
+	constructor(name: string, indentLevel: int, parent: Element) {
+		super(parent);
+		this.name = name;
+		this.indentLevel = indentLevel;
+	}
+
+	@Override
+	public toXML(): string {
+		return TAB.repeat(this.indentLevel) + "<" + this.name + 
+		(this.attributes ? 
+			this.attributes.map(a => " " + a.name + '= "' + a.value + '"').join("") 
+			: ""
+		) + 
+		(this.nodes ?
+			(">\n" 
+				+ this.nodes.map(c => c.toXML()).join("\n") 
+				+ "\n" + TAB.repeat(this.indentLevel) + "</" + this.name +">"
+			) : " />"
+		);
+	}
+
+	public addCDATA(s: string) {
+		let cdata: CDATA;
+
+		if (this.nodes && this.nodes[this.nodes.length - 1] instanceof CDATA) {
+			cdata = this.nodes[this.nodes.length - 1] as CDATA;
+		} else {
+			cdata = new CDATA(this);
+		}
+		cdata.content = cdata.content + s;
+	}
+	
+	public get tailCDATA(): string {
+		if (this.nodes && this.nodes[this.nodes.length - 1] instanceof CDATA) {
+			let cdata = this.nodes[this.nodes.length - 1] as CDATA;
+			return cdata.content
+		}
+		return "";
+	}
+
+}
+
+export public class CDATA extends Node {
+	content = "";
+
+	@Override
+	public toXML(): string {
+		return TAB.repeat(this.parent.indentLevel) + this.content;
+	}
+}
+
+export public class Attribute {
+	name: string;
+	value: string;
+}
+
+export public class Document extends Element {
+	indexes: Map<string, [Element]>;
+
+	constructor() {
+		super("aspex", 0, undefined);
+	}
+
+	public stringify(offsets=false, ids=false): string {
+		return JSON.stringify(this, (key, value) => {
+				if (key == "parent" || key == "indentLevel"
+					|| (!offsets && key.endsWith("Offset"))
+					|| (!ids && key == "id")) {
+					return undefined;
+				}
+				return value;
+			});
+	}
+
+}
