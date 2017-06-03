@@ -7,6 +7,7 @@ import {Document} from "Nodes";
 import {Element} from "Nodes";
 import {Token} from "Token";
 import {ExtensionContext} from "Extension";
+import {ExtensionElement} from "InputProcessor";
 
 function last(s: string): string {
 	if (s) {
@@ -41,16 +42,12 @@ export public class Parser extends InputProcessor {
 
 			if (token.category == Category.EOL) {
 
-				while (this.processorState.openInlineExtensions.length > 0) {
-					let ext = this.processorState.openInlineExtensions.pop();
-					ext.extension.closeElement(ext.element, this.createExtensionContext());
-				}
-
 				this.eolCount++;
 				if (this.eolCount == 2) {
 					if (this.cdataTarget) {
 						this.cdataTarget = undefined;
 					}
+					this.closeInlineElements();
 				}
 				this.indentLevel = 0;
 				continue;
@@ -59,18 +56,31 @@ export public class Parser extends InputProcessor {
 				this.indentLevel++;
 				continue;
 			}
-			if (token.category == Category.CMD) {
-
-				let cmd = token.extension;
-
-				while (this.indentLevel < this.currentElement.indentLevel) {
-					this.currentElement = this.currentElement.parent;
+			if (token.category == Category.CMD || token.category == Category.CTRL) { 
+				let extEl = token.extension;
+				if (extEl.extension.block) {
+					this.closeInlineElements();
+					while (this.indentLevel < this.currentElement.indentLevel) {
+						this.currentElement = this.currentElement.parent;
+					}
 				}
-
+				
 				let context = this.createExtensionContext();
-				this.currentElement = cmd.extension.createElement(context);
-				this.processorState.openBlockExtensions.push({extension: cmd.extension, element: this.currentElement});
-
+				if (this.isEndCtrl(extEl)) {
+					if(extEl!=this.processorState.openInlineExtensions.pop()) {
+						throw new Error("Internal error, closing inline extension is not last one");
+					}
+					extEl.extension.closeElement(extEl.element, context);
+					this.currentElement = this.currentElement.parent;
+				} else {
+					this.currentElement = extEl.extension.createElement(context);
+				
+					if (extEl.extension.block) {
+						this.processorState.openBlockExtensions.push({extension: extEl.extension, element: this.currentElement});
+					} else {
+						this.processorState.openInlineExtensions.push({extension: extEl.extension, element: this.currentElement});
+					}
+				}
 				this.cdataTarget = this.currentElement;
 				continue;
 
@@ -86,8 +96,21 @@ export public class Parser extends InputProcessor {
 		return document;
 	}
 
+	private isEndCtrl(extEl: ExtensionElement) {
+		return extEl && extEl.element;
+	}
+
+	private closeInlineElements() {
+		while (this.processorState.openInlineExtensions.length > 0) {
+			let ext = this.processorState.openInlineExtensions.pop();
+			ext.extension.closeElement(ext.element, this.createExtensionContext());
+		}
+
+	}
+
 	private adjustCDataTarget() {
 		if (this.indentLevel < this.currentElement.indentLevel) {
+			this.closeInlineElements();
 			while (this.indentLevel < this.currentElement.indentLevel) {
 				this.currentElement = this.currentElement.parent;
 				this.cdataTarget = null;
@@ -95,9 +118,10 @@ export public class Parser extends InputProcessor {
 		}
 
 		if (this.indentLevel > this.currentElement.indentLevel) {
+			this.closeInlineElements();
 			this.currentElement = new Element("pre", this.indentLevel, this.currentElement);
 			this.cdataTarget = this.currentElement;
-			// TODO switch parser and lexer to pre-formatting				
+		// TODO switch parser and lexer to pre-formatting				
 		}
 
 		if (!this.cdataTarget) {

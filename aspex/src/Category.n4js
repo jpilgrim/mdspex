@@ -96,10 +96,10 @@ const defaultCharacters = new Map<Category, string>([
 		[Category.LETTER, 'a'],
 		[Category.OTHER, '.'],
 		[Category.TEX_ESC, '\\'],
-		[Category.TEX_BEGINGROUP, '{'],
-		[Category.TEX_ENDGROUP, '}'],
-		[Category.TEX_SUPER, '^'],
-		[Category.TEX_SUB, '_'],
+		[Category.TEX_BEGINGROUP, []], // '{' for tex
+		[Category.TEX_ENDGROUP, []], // '{' for tex
+		[Category.TEX_SUPER, []], // '^' for tex
+		[Category.TEX_SUB, []], // '_' for tex
 	] as Iterable<Iterable2<Category, string>>);
 
 export public class CategorySwitch <INPUT, RETURN> {
