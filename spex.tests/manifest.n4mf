@@ -1,4 +1,4 @@
-ProjectId: aspex.tests
+ProjectId: spex.tests
 ProjectType: test
 ProjectVersion: 0.0.1
 VendorId: de.jevopi
@@ -12,7 +12,7 @@ Sources {
     }
 }
 TestedProjects {
-    aspex
+    spex
 }
 ProjectDependencies {
     eu.numberfour.mangelhaft,
