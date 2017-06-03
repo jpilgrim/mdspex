@@ -19,6 +19,12 @@ export public class ProcessorState {
 	blockCtrlExtensions = new Map<string, [Extension]>();
 
 	@Final
+	inlineNameExtensions = new Map<string, Extension>();
+
+	@Final
+	inlineCtrlExtensions = new Map<string, [Extension]>();
+
+	@Final
 	openInlineExtensions: [ExtensionElement] = [];
 
 	@Final
@@ -34,11 +40,27 @@ export public class ProcessorState {
 					let extsWithStart = this.blockCtrlExtensions.get(ext.ctrlStart);
 					if (extsWithStart) {
 						if (extsWithStart.find(other => other.name == ext.name)) {
-							throw new Error("Duplicate control extension " + ext.name + ".");
+							throw new Error("Duplicate control block extension " + ext.name + ".");
 						}
 					} else {
 						extsWithStart = [];
 						this.blockCtrlExtensions.set(ext.ctrlStart, extsWithStart);
+					}
+					extsWithStart.push(ext);
+				}
+			} else { // inline
+				if (ext.refByName) {
+					this.inlineNameExtensions.set(ext.name, ext);
+				}
+				if (ext.ctrlStart) {
+					let extsWithStart = this.inlineCtrlExtensions.get(ext.ctrlStart);
+					if (extsWithStart) {
+						if (extsWithStart.find(other => other.name == ext.name)) {
+							throw new Error("Duplicate control inline extension " + ext.name + ".");
+						}
+					} else {
+						extsWithStart = [];
+						this.inlineCtrlExtensions.set(ext.ctrlStart, extsWithStart);
 					}
 					extsWithStart.push(ext);
 				}

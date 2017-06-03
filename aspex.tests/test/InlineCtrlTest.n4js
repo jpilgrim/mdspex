@@ -5,7 +5,7 @@ import {Parser} from "Parser";
 import {Assert} from "n4/mangel/assert/Assert";
 import {DefaultExtensions} from "Extension";
 
-export public class InProgress {
+export public class InlineCtrlTest {
 
 	parse(s: string): Document {
 		

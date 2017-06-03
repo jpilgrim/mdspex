@@ -54,34 +54,57 @@ export public class InputSource {
 	 * @throw Throws an error if no more chars are available.
 	 */
 	public nextChar(): string {
+		
+		this.updateOffsets();
+		
 		this._currentIndex = this._index;
 		let c = this.sequence.charAt(this._index++);
 		if (c.length === 0) {
 			throw new Error("End of '" + this.name + "' reached, last position: " + this.lineNumber + ":" + this
 			.lineOffset);
 		}
-		if (c == '\n') {
-			this._lineNumber++;
-			this._lineOffset = 0;
+
+		return c;
+
+	}
+
+	
+	private updateOffsets() {
+		if (this._index == 0 || this.sequence.charAt(this._currentIndex)=='\n') {
 			this._lineStart = this._index;
 			if (this.peek() == '\r') this._lineStart++;
 			this._lineEnd = this._lineStart + 1;
 			while (this._lineEnd < this.sequence.length
-			&& this.sequence.charAt(this._lineEnd) != '\n' && this.sequence.charAt(this._lineEnd) != '\r') {
+					&& this.sequence.charAt(this._lineEnd) != '\n'
+					&& this.sequence.charAt(this._lineEnd) != '\r') {
 				this._lineEnd++;
+			}
+
+			if (this._index != 0) {
+				this._lineNumber++;
+				this._lineOffset = 0;
 			}
 		} else {
 			this._lineOffset++;
 		}
-		return c;
-
 	}
-	
+
+	/**
+	 * Returns the current line. New line and return line (\n and \r) are omitted, both characters are
+	 * interpreted as "EOL line", meaning they are at the end of the line. 
+	 */
 	public get line(): string {
 		return this.sequence.substring(this._lineStart, this._lineEnd);
 	}
 
+	/**
+	 * Returns the rest of the line, including the current char 
+	 * (i.e. the char returned by the previous nextChar call).
+	 * The new line character or return character (n and r) are omitted. 
+	 * The new line character is interpreted as "end of line" and is the last character of a line.
+	 */
 	public get restOfLine(): string {
+		if (this._currentIndex<this._lineStart) { return ""; }
 		return this.sequence.substring(this._currentIndex, this._lineEnd);
 	}
 
@@ -95,6 +118,14 @@ export public class InputSource {
 
 	get lineOffset(): int {
 		return this._lineOffset;
+	}
+
+	get lineStart(): int {
+		return this._lineStart;
+	}
+
+	get lineEnd(): int {
+		return this._lineEnd;
 	}
 
 	get location(): InputLocation {

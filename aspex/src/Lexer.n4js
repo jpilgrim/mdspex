@@ -8,6 +8,7 @@ import {CharacterToken} from "Token";
 import {Token} from "Token";
 import {Extension} from "Extension";
 import {ExtensionToken} from "Token";
+import {ExtensionElement} from "InputProcessor";
 
 export public class Lexer extends InputProcessor implements Iterator<Token> {
 
@@ -156,6 +157,39 @@ abstract class LexerState extends CategorySwitch<string, Token> {
 		let cat = this.lexer.processorState.catcodeMap.category(c);
 		return this.switchCategory(cat, c);
 	}
+	
+	protected getCtrlToken(input: string, extensionsByCtrlStart: Map<string, [Extension]>, lastCtrlStarted: ExtensionElement =): Token {
+		if (lastCtrlStarted && lastCtrlStarted.extension.ctrlEnd==input) {
+			let line = this.lexer.is.restOfLine;
+			let length = lastCtrlStarted.extension.matchCtrlStart(line);
+			let ctrl = input + this.lexer.consume(length-1);
+			return new ExtensionToken(ctrl, Category.CTRL, lastCtrlStarted);
+		}		
+		
+		let matchingExtensions = extensionsByCtrlStart.get(input);
+		if (matchingExtensions) {
+			let maxLength = 0;
+			let longest: [Extension] = [];
+			let line = this.lexer.is.restOfLine;
+			for (let ext of matchingExtensions) {
+					let length = ext.matchCtrlStart(line);
+					if (length > maxLength) {
+						longest = [ext];
+						maxLength = length;
+					} else if (length == maxLength) {
+						longest.push(ext);
+					}
+			}
+			if (longest.length == 1) {
+				let ctrl = input + this.lexer.consume(maxLength-1);
+				return new ExtensionToken(ctrl, Category.CTRL, {extension: longest[0]});
+			}
+			if (longest.length > 1) {
+				throw new Error("Ambiguous extension: Found " + longest.map(ext => ext.name).join());
+			}
+		}
+		return undefined;	
+	}
 
 	/**
 	 * Ignored characters; processor remains in the same state.
@@ -267,41 +301,8 @@ class StateNewline extends LexerState {
 
 	@Override
 	protected caseOther(input: string): Token {
-		
-		
-		let lastStartedInlineExt = this.lexer.processorState.lastOpenInlineExtensions;
-		if (lastStartedInlineExt && lastStartedInlineExt.extension.ctrlEnd==input) {
-			let length = lastStartedInlineExt.extension.matchCtrlEnd(this.lexer.is.restOfLine);
-			if (length) {
-				let ctrl = input + this.lexer.consume(length);
-				return new ExtensionToken(ctrl, Category.CTRL, lastStartedInlineExt);
-			}
-		} 
-		
-
-		let matchingExtensions = this.lexer.processorState.blockCtrlExtensions.get(input);
-		if (matchingExtensions) {
-			let maxLength = 0;
-			let longest: [Extension] = [];
-			let line = this.lexer.is.restOfLine;
-			for (let ext of matchingExtensions) {
-					let length = ext.matchCtrlStart(line);
-					if (length > maxLength) {
-						longest = [ext];
-					} else if (length == maxLength) {
-						longest.push(ext);
-					}
-			}
-			if (longest.length == 1) {
-				let ctrl = input + this.lexer.consume(maxLength);
-				return new ExtensionToken(ctrl, Category.CTRL, {extension: longest[0]});
-			}
-			if (longest.length > 1) {
-				throw new Error("Ambiguous extension: Found " + longest.map(ext => ext.name).join());
-			}
-		}
-
-		return this.defaultCase(Category.LETTER, input);
+		let token = this.getCtrlToken(input, this.lexer.processorState.blockCtrlExtensions);
+		return token || super.caseOther(input);
 	}
 
 	@Override
@@ -327,7 +328,13 @@ class StateMiddleOfLine extends LexerState {
 		this.lexer.changeToStateSkippingSpaces();
 		return Token.SPACE(input);
 	}
-}
+	
+	@Override
+	protected caseOther(input: string): Token {
+		let token = this.getCtrlToken(input, this.lexer.processorState.inlineCtrlExtensions, this.lexer.processorState.lastOpenInlineExtensions);
+		return token || super.caseOther(input);
+	}
+ }
 
 class StateSkippingSpaces extends LexerState {
 
