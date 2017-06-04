@@ -5,7 +5,7 @@ import {Parser} from "Parser";
 import {Assert} from "n4/mangel/assert/Assert";
 import {DefaultExtensions} from "Extension";
 
-export public class InProgress {
+export public class SimpleDefaultExtensionsTest {
 
 	parse(s: string): Document {
 		
@@ -17,15 +17,22 @@ export public class InProgress {
 		return doc;
 	}
 	       
-
+	@Test
+	public testEpty() {
+		let ast = this.parse("");
+		console.log(ast.toXML());
+		let astJSON = ast.stringify();
+		Assert.equal(astJSON,
+			'{"name":"spex"}' );
+	}
 	
 	@Test
-	public test() {
+	public test1() {
 		let ast = this.parse("_hello_\n\nWorld!");
 		console.log(ast.toXML());
 		let astJSON = ast.stringify();
 		Assert.equal(astJSON,
-			'{"name":"aspex","nodes":[{"name":"em","nodes":[{"content":"hello"}]},{"name":"p","nodes":[{"content":"World!"}]}]}' );
+			'{"name":"spex","nodes":[{"name":"em","nodes":[{"content":"hello"}]},{"name":"p","nodes":[{"content":"World!"}]}]}' );
 	}
 
 }

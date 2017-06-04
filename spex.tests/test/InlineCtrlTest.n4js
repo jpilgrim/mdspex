@@ -25,7 +25,7 @@ export public class InlineCtrlTest {
 		console.log(ast.toXML());
 		let astJSON = ast.stringify();
 		Assert.equal(astJSON,
-			'{"name":"aspex","nodes":[{"name":"em","nodes":[{"content":"hello"}]},{"name":"p","nodes":[{"content":"World!"}]}]}' );
+			'{"name":"spex","nodes":[{"name":"em","nodes":[{"content":"hello"}]},{"name":"p","nodes":[{"content":"World!"}]}]}' );
 	}
 
 }

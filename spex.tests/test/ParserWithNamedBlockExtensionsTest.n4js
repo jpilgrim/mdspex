@@ -24,7 +24,7 @@ export public class ParserWithNamedBlockExtensionsTest {
 		console.log(ast.toXML());
 		let astJSON = ast.stringify();
 		Assert.equal(astJSON,
-			'{"name":"aspex","nodes":[{"content":"hello"},{"name":"INFO","nodes":[{"content":"word"}]}]}');
+			'{"name":"spex","nodes":[{"content":"hello"},{"name":"INFO","nodes":[{"content":"word"}]}]}');
 	}
 
 }

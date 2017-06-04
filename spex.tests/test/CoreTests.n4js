@@ -1,0 +1,21 @@
+import {ResourceBasedTest} from "ResourceBasedTest";
+
+
+export public class CoreTests extends ResourceBasedTest {
+
+	@Override
+	protected get testResPath(): string {
+		return "core";
+	}
+
+	@Parameters("{index}")
+    public static getSomeParameters() {
+        return ["empty", "singleLine"].map(s=>[s]);
+    }
+    
+    @Parameter
+    @Override
+    public name: string
+    
+	
+}

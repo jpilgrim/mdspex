@@ -6,6 +6,9 @@ VendorId: de.jevopi
 Output: "src-gen"
 //define project source folders
 Sources {
+	source {
+        "src"
+	}
     //those are your project test sources (usually N4JS code)
     test {
         "test"
@@ -17,4 +20,12 @@ TestedProjects {
 ProjectDependencies {
     eu.numberfour.mangelhaft,
     eu.numberfour.mangelhaft.assert
+}
+RequiredRuntimeLibraries {
+    n4js-runtime-node,
+    n4js-runtime-fetch,
+    n4js-runtime-es2015
+}
+Resources {
+    "res"
 }

@@ -1,0 +1,78 @@
+import {DefaultExtensions} from "Extension";
+import {ProcessorState} from "InputProcessor";
+import {InputSource} from "InputSource";
+import {Document} from "Nodes";
+import {Parser} from "Parser";
+import {readFile} from "fs";
+import {delimiter} from "path";
+import {join} from "path";
+import {Assert} from "n4/mangel/assert/Assert";
+
+
+export public interface ~SourceAndExpectation {
+	source: string;
+	expected: string;
+}
+
+export public abstract class ResourceBasedTest {
+	
+	/**
+	 * Returns resource path relative to test project's res folder.
+	 * Use nodes sep for separating path segments.
+	 */
+	protected abstract get testResPath(): string
+	
+	/**
+	 * Name of the (single) test.
+	 */
+	protected abstract get name(): string
+	
+	get testAbsResPath(): string {
+		return join("spex.tests", "res" );
+	}
+
+	public async loadSourceAndExpectation(testName: string): SourceAndExpectation {
+		let np = global.process.env.NODE_PATH as string;
+		let resPath = np.split(delimiter).find(s => s.endsWith(this.testAbsResPath));
+		
+		let fullPath = join(resPath, this.testResPath, testName + ".spex_xml");
+		// console.log(fullPath);
+
+		let s = await readFile(fullPath, {encoding: 'utf-8'});
+		let [source,expected] = s.split(/\n__________________*\n/);
+		return { source: source, expected: expected};
+	}	
+
+	protected parse(src: string): Document {
+		
+		let processorState = new ProcessorState();
+		processorState.addExtensions(new DefaultExtensions().extensions);
+		
+		let parser = new Parser(processorState);
+		let doc = parser.parse(new InputSource(this.name, src));
+		return doc;
+	}
+	
+	@Test
+	public async test() {
+		//console.log("run test " + this.name)
+		let sae = await this.loadSourceAndExpectation(this.name);
+		// console.log(sae.source);
+		let doc = this.parse(sae.source);
+		let actual = doc.toXML(); 
+		try {
+			Assert.equal(actual, sae.expected, this.name);
+		} catch (e) {
+			console.log("_____________________________________");
+			console.log("Error test " + this.name);
+			console.log("_____________________________________");
+			console.log(sae.source);
+			console.log("______________\nExpected:");
+			console.log(sae.expected);	
+			console.log("______________\nActual:");
+			console.log(actual);	
+			throw e;
+		}		
+	}	
+
+}

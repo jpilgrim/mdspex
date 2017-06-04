@@ -15,13 +15,13 @@ export public class ParserTest {
 	@Test
 	public testEmpty() {
 		let ast = this.parse("").stringify();
-		Assert.equal(ast, '{"name":"aspex"}');
+		Assert.equal(ast, '{"name":"spex"}');
 	}
 
 	@Test
 	public testWord() {
 		let ast = this.parse("word").stringify();
-		Assert.equal(ast, '{"name":"aspex","nodes":[{"content":"word"}]}');
+		Assert.equal(ast, '{"name":"spex","nodes":[{"content":"word"}]}');
 	}
 
 	@Test
@@ -29,7 +29,7 @@ export public class ParserTest {
 		let ast = this.parse("hello word");
 		// console.log(ast.toXML());
 		let astJSON = ast.stringify();
-		Assert.equal(astJSON, '{"name":"aspex","nodes":[{"content":"hello word"}]}');
+		Assert.equal(astJSON, '{"name":"spex","nodes":[{"content":"hello word"}]}');
 	}
 
 	@Test
@@ -37,7 +37,7 @@ export public class ParserTest {
 		let ast = this.parse("hello\nword");
 		// console.log(ast.toXML());
 		let astJSON = ast.stringify();
-		Assert.equal(astJSON, '{"name":"aspex","nodes":[{"content":"hello word"}]}');
+		Assert.equal(astJSON, '{"name":"spex","nodes":[{"content":"hello word"}]}');
 	}
 
 	@Test
@@ -46,7 +46,7 @@ export public class ParserTest {
 		// console.log(ast.toXML());
 		let astJSON = ast.stringify();
 		Assert.equal(astJSON,
-			'{"name":"aspex","nodes":[{"content":"hello"},{"name":"p","nodes":[{"content":"word"}]}]}');
+			'{"name":"spex","nodes":[{"content":"hello"},{"name":"p","nodes":[{"content":"word"}]}]}');
 	}
 
 	@Test
@@ -55,7 +55,7 @@ export public class ParserTest {
 //		console.log(ast.toXML());
 		let astJSON = ast.stringify();
 		Assert.equal(astJSON,
-			'{"name":"aspex","nodes":[{"content":"hello"},{"name":"p","nodes":[{"content":"word."}]}]}');
+			'{"name":"spex","nodes":[{"content":"hello"},{"name":"p","nodes":[{"content":"word."}]}]}');
 	}
 
 	@Test
@@ -64,7 +64,7 @@ export public class ParserTest {
 		console.log(ast.toXML());
 		let astJSON = ast.stringify();
 		Assert.equal(astJSON,
-			'{"name":"aspex","nodes":[{"content":"hello"},{"name":"pre","nodes":[{"content":"word"}]}]}');
+			'{"name":"spex","nodes":[{"content":"hello"},{"name":"pre","nodes":[{"content":"word"}]}]}');
 	}
 
 }

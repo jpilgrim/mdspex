@@ -100,7 +100,7 @@ export public class Document extends Element {
 	indexes: Map<string, [Element]>;
 
 	constructor() {
-		super("aspex", 0, undefined);
+		super("spex", 0, undefined);
 	}
 
 	public stringify(offsets=false, ids=false): string {
