@@ -4,8 +4,7 @@ This is WORK IN PROGRESS. That is, although some basic parts are already working
 most features described here or in the specification are not working yet.
 As soon as a first usable version is ready, this disclaimer is to be removed.
 
-
-![](https://travis-ci.org/jpilgrim/spex.svg?branch=master)
+[![Build Status](https://travis-ci.org/jpilgrim/spex.svg?branch=master)](https://travis-ci.org/jpilgrim/spex)
 
 # Overview
 
