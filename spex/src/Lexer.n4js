@@ -1,31 +1,33 @@
 import {Category} from "Category";
 import {CategorySwitch} from "Category";
+import {Extension} from "Extension";
 import {InputProcessor} from "InputProcessor";
-import {ProcessorState} from "InputProcessor";
 import {InputLocation} from "InputSource";
 import {InputSource} from "InputSource";
+import {Element} from "Nodes";
 import {CharacterToken} from "Token";
-import {Token} from "Token";
-import {Extension} from "Extension";
 import {ExtensionToken} from "Token";
-import {ExtensionElement} from "InputProcessor";
+import {Token} from "Token";
+import {ActiveExtension} from "InputProcessor";
 
 export public class Lexer extends InputProcessor implements Iterator<Token> {
 
 	inputSources: [InputSource] = [];
 	is: InputSource = null;
 	state: LexerState;
-	stateN: LexerState = new StateNewline(this);
-	stateS: LexerState = new StateSkippingSpaces(this);
-	stateM: LexerState = new StateMiddleOfLine(this);
-
-	constructor(processorState: ProcessorState) {
-		super(processorState);
-		this.state = this.stateN;
-	}
+	
+	@Inject
+	stateN: StateNewline;
+	@Inject
+	stateS: StateSkippingSpaces;
+	@Inject
+	stateM: StateMiddleOfLine;
 
 	public addInputSource(inputSources: InputSource | [InputSource]) {
 		this.inputSources = this.inputSources.concat(inputSources);
+		if (this.state==null) {
+			this.state = this.stateN;
+		}
 	}
 
 	public get location(): InputLocation {
@@ -146,19 +148,15 @@ abstract class LexerState extends CategorySwitch<string, Token> {
 	/**
 	 * The owning lexer
 	 */
-	@Final
+	@Inject
 	protected lexer: Lexer;
-
-	constructor(lexer: Lexer) {
-		this.lexer = lexer;
-	}
 
 	nextToken(c: string): Token {
 		let cat = this.lexer.processorState.catcodeMap.category(c);
 		return this.switchCategory(cat, c);
 	}
 	
-	protected getCtrlToken(input: string, extensionsByCtrlStart: Map<string, [Extension]>, lastCtrlStarted: ExtensionElement =): Token {
+	protected getCtrlToken(input: string, extensionsByCtrlStart: Map<string, [Extension]>, lastCtrlStarted: ActiveExtension<Element> =): Token {
 		if (lastCtrlStarted && lastCtrlStarted.extension.ctrlEnd==input) {
 			let line = this.lexer.is.restOfLine;
 			let length = lastCtrlStarted.extension.matchCtrlStart(line);
@@ -289,7 +287,7 @@ class StateNewline extends LexerState {
 		if (this.lexer.isCmd(this.lexer.peekChar(ahead)) && !this.lexer.isCmd(this.lexer.peekChar(ahead + 1))) {
 			let command = input + this.lexer.consume(ahead);
 
-			let ext = this.lexer.processorState.blockNameExtensions.get(command);
+			let ext = this.lexer.processorState.nameBlockOrParExtensions.get(command);
 			if (ext) {
 				this.lexer.consume();
 				return new ExtensionToken(command, Category.CMD, {extension: ext}) ;
@@ -301,7 +299,7 @@ class StateNewline extends LexerState {
 
 	@Override
 	protected caseOther(input: string): Token {
-		let token = this.getCtrlToken(input, this.lexer.processorState.blockCtrlExtensions);
+		let token = this.getCtrlToken(input, this.lexer.processorState.ctrlBlockOrParExtensions);
 		return token || super.caseOther(input);
 	}
 
@@ -331,7 +329,7 @@ class StateMiddleOfLine extends LexerState {
 	
 	@Override
 	protected caseOther(input: string): Token {
-		let token = this.getCtrlToken(input, this.lexer.processorState.inlineCtrlExtensions, this.lexer.processorState.lastOpenInlineExtensions);
+		let token = this.getCtrlToken(input, this.lexer.processorState.ctrlInlineExtensions, this.lexer.processorState.activeInlineExtension);
 		return token || super.caseOther(input);
 	}
  }

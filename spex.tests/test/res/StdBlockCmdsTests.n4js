@@ -1,0 +1,13 @@
+import {ResourceBasedTest} from "ResourceBasedTest";
+
+
+export public class StdBlockCmdsTests extends ResourceBasedTest {
+
+	@Parameters("{index}")
+    public static getSomeParameters() {
+        return ["info"].map(s=>[s]);
+    }
+    
+    
+	
+}

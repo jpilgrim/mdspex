@@ -1,12 +1,13 @@
-import {DefaultExtensions} from "Extension";
-import {ProcessorState} from "InputProcessor";
+import {DefaultExtensionBinder} from "DefaultExtensionBinder";
+import {NoExtensionBinder} from "DefaultExtensionBinder";
 import {InputSource} from "InputSource";
 import {Document} from "Nodes";
 import {Parser} from "Parser";
 import {readFile} from "fs";
+import {Assert} from "n4/mangel/assert/Assert";
+import {N4Injector} from "n4js/lang/N4Injector";
 import {delimiter} from "path";
 import {join} from "path";
-import {Assert} from "n4/mangel/assert/Assert";
 
 
 export public interface ~SourceAndExpectation {
@@ -14,52 +15,58 @@ export public interface ~SourceAndExpectation {
 	expected: string;
 }
 
-export public abstract class ResourceBasedTest {
+interface IResourceBasedTest {
 	
-	/**
+	get injector(): N4Injector;
+	get name(): string;
+/**
 	 * Returns resource path relative to test project's res folder.
 	 * Use nodes sep for separating path segments.
+	 * 
+	 * By default, this returns the name of the test class with
+	 * removed "Tests" (or "Test") suffix and first letter lower case.
 	 */
-	protected abstract get testResPath(): string
-	
-	/**
-	 * Name of the (single) test.
-	 */
-	protected abstract get name(): string
-	
+	protected get testResPath(): string {
+		let name = N4Class.of(this).name;
+		if (name.endsWith("Tests")) {
+			name = name.substring(0, name.length-5);
+		}
+		if (name.endsWith("Test")) {
+			name = name.substring(0, name.length-4);
+		}
+		name = name.charAt(0).toLowerCase() + name.substring(1, name.length);
+		return name;
+	}
+
+
 	get testAbsResPath(): string {
-		return join("spex.tests", "res" );
+		return join("spex.tests", "res");
 	}
 
 	public async loadSourceAndExpectation(testName: string): SourceAndExpectation {
 		let np = global.process.env.NODE_PATH as string;
 		let resPath = np.split(delimiter).find(s => s.endsWith(this.testAbsResPath));
-		
+
 		let fullPath = join(resPath, this.testResPath, testName + ".spex_xml");
 		// console.log(fullPath);
-
 		let s = await readFile(fullPath, {encoding: 'utf-8'});
-		let [source,expected] = s.split(/\n__________________*\n/);
-		return { source: source, expected: expected};
-	}	
+		let [source, expected] = s.split(/\n__________________*\n/);
+		return {source: source, expected: expected.replace(/\t/g, "    ")};
+	}
 
 	protected parse(src: string): Document {
-		
-		let processorState = new ProcessorState();
-		processorState.addExtensions(new DefaultExtensions().extensions);
-		
-		let parser = new Parser(processorState);
+		let parser = this.injector.create(Parser);
 		let doc = parser.parse(new InputSource(this.name, src));
 		return doc;
 	}
 	
 	@Test
-	public async test() {
-		//console.log("run test " + this.name)
+	async test() {
+		// console.log("run test " + this.name)
 		let sae = await this.loadSourceAndExpectation(this.name);
 		// console.log(sae.source);
 		let doc = this.parse(sae.source);
-		let actual = doc.toXML(); 
+		let actual = doc.toXML();
 		try {
 			Assert.equal(actual, sae.expected, this.name);
 		} catch (e) {
@@ -68,11 +75,39 @@ export public abstract class ResourceBasedTest {
 			console.log("_____________________________________");
 			console.log(sae.source);
 			console.log("______________\nExpected:");
-			console.log(sae.expected);	
+			console.log(sae.expected);
 			console.log("______________\nActual:");
-			console.log(actual);	
+			console.log(actual);
 			throw e;
-		}		
-	}	
+		}
+	}
+}
 
+@GenerateInjector()
+@UseBinder(DefaultExtensionBinder)
+export public abstract class ResourceBasedTest implements IResourceBasedTest {
+
+	@Inject
+	@Override
+	injector: N4Injector;
+	
+	@Parameter
+    @Override
+    public name: string
+    	
+}
+
+@GenerateInjector()
+@UseBinder(NoExtensionBinder)
+export public abstract class ResourceBasedCoreTest implements IResourceBasedTest {
+
+	@Inject
+	@Override
+	injector: N4Injector;
+	
+	@Parameter
+    @Override
+    public name: string
+    
+	
 }

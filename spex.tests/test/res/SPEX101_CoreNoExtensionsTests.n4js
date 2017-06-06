@@ -1,0 +1,26 @@
+import {ResourceBasedCoreTest} from "ResourceBasedTest";
+
+export const coreTests = [
+        	"empty",
+        	"singleWord",
+        	"singleLine",
+        	"singleEOL",
+        	"twoParagraphs",
+        	"twoParagraphsWithPunctuationMark",
+        	"preBlock",
+        	"parAndPre",
+        ];
+
+export public class SPEX101_CoreNoExtensionsTests extends ResourceBasedCoreTest {
+
+	@Override
+	protected get testResPath(): string {
+		return "SPEX101_core";
+	}
+
+	@Parameters("{index}")
+    public static getSomeParameters() {
+        return coreTests.map(s=>[s]);
+    }
+    
+}

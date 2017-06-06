@@ -1,10 +1,12 @@
 import {CatcodeMap} from "Category";
+import {DefaultExtensions} from "DefaultExtensions";
 import {Extension} from "Extension";
 import {Element} from "Nodes";
+import {ElementType} from "Nodes";
 
-export public interface ~ExtensionElement {
+export public interface ~ActiveExtension<T extends Element> {
 	extension: Extension;
-	element?: Element;
+	element?: T;
 }
 
 export public class ProcessorState {
@@ -13,79 +15,81 @@ export public class ProcessorState {
 	catcodeMap = new CatcodeMap();
 
 	@Final
-	blockNameExtensions = new Map<string, Extension>();
+	nameBlockOrParExtensions = new Map<string, Extension>();
 
 	@Final
-	blockCtrlExtensions = new Map<string, [Extension]>();
+	ctrlBlockOrParExtensions = new Map<string, [Extension]>();
 
 	@Final
-	inlineNameExtensions = new Map<string, Extension>();
+	nameInlineExtensions = new Map<string, Extension>();
 
 	@Final
-	inlineCtrlExtensions = new Map<string, [Extension]>();
+	ctrlInlineExtensions = new Map<string, [Extension]>();
 
 	@Final
-	openInlineExtensions: [ExtensionElement] = [];
-
-	@Final
-	openBlockExtensions: [ExtensionElement] = [];
+	activeExtensions: [ActiveExtension<Element>] = [];
 
 	public addExtensions(extensions: [Extension]) {
 		for (let ext of extensions) {
-			if (ext.block) {
+			if (ext.elementType != ElementType.INLINE) {
 				if (ext.refByName) {
-					this.blockNameExtensions.set(ext.name, ext);
+					this.nameBlockOrParExtensions.set(ext.name, ext);
 				}
 				if (ext.ctrlStart) {
-					let extsWithStart = this.blockCtrlExtensions.get(ext.ctrlStart);
+					let extsWithStart = this.ctrlBlockOrParExtensions.get(ext.ctrlStart);
 					if (extsWithStart) {
 						if (extsWithStart.find(other => other.name == ext.name)) {
 							throw new Error("Duplicate control block extension " + ext.name + ".");
 						}
 					} else {
 						extsWithStart = [];
-						this.blockCtrlExtensions.set(ext.ctrlStart, extsWithStart);
+						this.ctrlBlockOrParExtensions.set(ext.ctrlStart, extsWithStart);
 					}
 					extsWithStart.push(ext);
 				}
 			} else { // inline
 				if (ext.refByName) {
-					this.inlineNameExtensions.set(ext.name, ext);
+					this.nameInlineExtensions.set(ext.name, ext);
 				}
 				if (ext.ctrlStart) {
-					let extsWithStart = this.inlineCtrlExtensions.get(ext.ctrlStart);
+					let extsWithStart = this.ctrlInlineExtensions.get(ext.ctrlStart);
 					if (extsWithStart) {
 						if (extsWithStart.find(other => other.name == ext.name)) {
 							throw new Error("Duplicate control inline extension " + ext.name + ".");
 						}
 					} else {
 						extsWithStart = [];
-						this.inlineCtrlExtensions.set(ext.ctrlStart, extsWithStart);
+						this.ctrlInlineExtensions.set(ext.ctrlStart, extsWithStart);
 					}
 					extsWithStart.push(ext);
 				}
 			}
 		}
 	}
-
-	get lastOpenInlineExtensions(): ExtensionElement {
-		return this.openInlineExtensions ? this
-			.openInlineExtensions[this.openInlineExtensions.length - 1] : undefined;
+	
+	get activeExtension(): ActiveExtension<Element> {
+		return this.activeExtensions ? this.activeExtensions[this.activeExtensions.length-1] : undefined;
 	}
 
-	get lastOpenBlockExtensions(): ExtensionElement {
-		return this.openBlockExtensions ? this
-			.openBlockExtensions[this.openBlockExtensions.length - 1] : undefined;
+	get activeInlineExtension(): ActiveExtension<Element> {
+		let active = this.activeExtension;
+		if (active && active.extension.elementType != ElementType.INLINE) {
+			return undefined;
+		}
+		return active;
 	}
+	
+}
 
+export public class DefaultProcessorState extends ProcessorState {
+	
+	constructor() {
+		this.addExtensions(new DefaultExtensions().extensions);
+	}
 }
 
 export public class InputProcessor {
 
-	@Final
 	protected processorState: ProcessorState;
-	constructor(processorState: ProcessorState) {
-		this.processorState = processorState;
-	}
 
 }

@@ -86,20 +86,19 @@ export public function shortCategory(cat: Category): string {
 }
 
 const defaultCharacters = new Map<Category, string>([
-	
 		[Category.CMD, ':'],
-		[Category.CTRL, []],
+		[Category.CTRL, ''],
 		[Category.EOL, '\n'],
 		[Category.IGNORE, String.fromCharCode(0)],
 		[Category.INVALID, String.fromCharCode(127)],
-		[Category.SPACE, ' '],
-		[Category.LETTER, 'a'],
-		[Category.OTHER, '.'],
+		[Category.SPACE, ' \t'],
+		[Category.LETTER, ''], // no default, computed as "rest"
+		[Category.OTHER, ''], // no explicit characters, ranges defined below
 		[Category.TEX_ESC, '\\'],
-		[Category.TEX_BEGINGROUP, []], // '{' for tex
-		[Category.TEX_ENDGROUP, []], // '{' for tex
-		[Category.TEX_SUPER, []], // '^' for tex
-		[Category.TEX_SUB, []], // '_' for tex
+		[Category.TEX_BEGINGROUP, ''], // '{' for tex
+		[Category.TEX_ENDGROUP, ''], // '{' for tex
+		[Category.TEX_SUPER, ''], // '^' for tex
+		[Category.TEX_SUB, ''], // '_' for tex
 	] as Iterable<Iterable2<Category, string>>);
 
 export public class CategorySwitch <INPUT, RETURN> {
@@ -207,18 +206,22 @@ function isLetter(c: string) {
 export public class CatcodeMap {
 
 	@Final
-	charToCatcode = new Map<Category, Set<string>>();
+	charToCatcode = new Map<string, Category>();
 
 	public constructor() {
 		defaultCharacters.forEach((def, cat) => {
-				let set = new Set<string>();
-				set.add(def);
-				this.charToCatcode.set(cat, set);
+				for (let i=0; i<def.length; i++) {
+					let c = def.charAt(i);
+					if (this.charToCatcode.get(c)) {
+						throw new Error("Try to set character '" + c+"' to cat " + cat+", is already " + this.charToCatcode.get(c));
+					}
+					this.charToCatcode.set(def.charAt(i), cat);
+				}
 			});
 	}
 
 	public isCategory(c: string, cat: Category): boolean {
-		if (this.charToCatcode.get(cat).has(c)) {
+		if (this.charToCatcode.get(c)==cat) {
 			return true;
 		}
 		if (cat == Category.LETTER && isLetter(c)) {
@@ -228,11 +231,9 @@ export public class CatcodeMap {
 	}
 
 	public category(c: string): Category {
-
-		for (var [cat, chars] of this.charToCatcode) {
-			if (chars.has(c)) {
-				return cat;
-			}
+		let cat = this.charToCatcode.get(c);
+		if (cat) {
+			return cat;
 		}
 		if (isLetter(c)) {
 			return Category.LETTER;
@@ -244,11 +245,20 @@ export public class CatcodeMap {
 	 * Sets the category of a character, similar to tex command {@code \catcode}
 	 */
 	public catcode(c: string, newCategory: Category) {
-		let oldCat = this.category(c);
-		if (oldCat != newCategory) {
-			this.charToCatcode.get(newCategory).add(c);
-			this.charToCatcode.get(oldCat).delete(c);
+		switch (newCategory) {
+		case Category.LETTER: 
+			this.charToCatcode.delete(c);
+			if (isLetter(c)) {
+				return;
+			}
+			break;
+		case Category.OTHER:
+			this.charToCatcode.delete(c);
+			if (! isLetter(c)) {
+				return;
+			}
 		}
+		this.charToCatcode.set(c, newCategory);
 	}
 }
 

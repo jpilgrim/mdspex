@@ -1,0 +1,43 @@
+import {AbstractExtension} from "Extension";
+import {ExtensionContext} from "Extension";
+import {Element} from "Nodes";
+import {ElementType} from "Nodes";
+import {Paragraph} from "Nodes";
+
+
+export public class ATXHeading extends AbstractExtension {
+
+	@Override
+	public get ctrlStart(): string {
+		return "#"
+	}
+	
+	@Override
+	public get elementType(): ElementType {
+		return ElementType.PAR
+	}
+
+	@Override
+	public get name(): string {
+		return "ATXHeading"
+	}
+
+	/**
+	 * Returns level of heading (1-6).
+	 */
+	@Override
+	public matchCtrlStart(line: string): int {
+		let res = line.match(/^#{1,6}\s/);
+		// [ '###### ', index: 0, input: '###### Hello' ]
+		if (res) {
+			return res[0].length - 1;
+		}
+		return 0;
+	}
+
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		let level = this.matchCtrlStart(context.restOfLine);
+		return new Paragraph("H" + level, context.indentLevel, context.currentElement);
+	}
+}

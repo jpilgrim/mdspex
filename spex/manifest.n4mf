@@ -14,3 +14,6 @@ Sources {
 RequiredRuntimeLibraries {
     n4js-runtime-es2015
 }
+ProjectDependencies {
+    n4js.lang
+}

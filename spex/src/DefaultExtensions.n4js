@@ -1,0 +1,17 @@
+import {Extension} from "Extension";
+import {InlineFormatting} from "Extension";
+import {NamedBlockCommand} from "Extension";
+import {ATXHeading} from "extensions/ATXHeadings";
+
+export public class DefaultExtensions {
+
+	extensions: [Extension];
+	constructor() {
+		this.extensions = ["NOTE", "INFO", "WARNING", "TODO"].map(name => new NamedBlockCommand(name));
+		this.extensions.push(new ATXHeading());
+		this.extensions.push(new InlineFormatting('*', 'strong'));
+		this.extensions.push(new InlineFormatting('_', 'em'));
+
+	}
+
+}

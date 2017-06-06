@@ -19,13 +19,15 @@ TestedProjects {
 }
 ProjectDependencies {
     eu.numberfour.mangelhaft,
-    eu.numberfour.mangelhaft.assert
+    eu.numberfour.mangelhaft.assert,
+    n4js.lang
 }
 RequiredRuntimeLibraries {
     n4js-runtime-node,
     n4js-runtime-fetch,
     n4js-runtime-es2015
 }
+
 Resources {
     "res"
 }

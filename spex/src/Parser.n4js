@@ -1,13 +1,20 @@
 import {Category} from "Category";
+import {DocumentHandler} from "Extension";
+import {Extension} from "Extension";
+import {ExtensionContext} from "Extension";
+import {ParagraphHandler} from "Extension";
+import {PreformattedHandler} from "Extension";
+import {ActiveExtension} from "InputProcessor";
 import {InputProcessor} from "InputProcessor";
-import {ProcessorState} from "InputProcessor";
 import {InputSource} from "InputSource";
 import {Lexer} from "Lexer";
+import {Block} from "Nodes";
+import {CDATAContainer} from "Nodes";
 import {Document} from "Nodes";
-import {Element} from "Nodes";
 import {Token} from "Token";
-import {ExtensionContext} from "Extension";
-import {ExtensionElement} from "InputProcessor";
+import {ElementType} from "Nodes";
+import {N4Injector} from "n4js/lang/N4Injector";
+import {ProcessorState} from "InputProcessor";
 
 function last(s: string): string {
 	if (s) {
@@ -16,135 +23,145 @@ function last(s: string): string {
 	return "";
 }
 
+function <T>peek(array: [T]): T {
+	if (array) {
+		return array[array.length-1];
+	}
+	return undefined;
+}
+
 export public class Parser extends InputProcessor {
 
+	@Inject
 	lexer: Lexer;
-	eolCount = 0;
+	
+	@Inject 
+	paragraphHandler: ParagraphHandler
+	@Inject 
+	preformattedHandler: PreformattedHandler
+	@Inject 
+	documentHandler: DocumentHandler
+	
+	eolCount: int = 0;
 	indentLevel: int = 0;
 
-	currentElement: Element;
-	cdataTarget: Element;
-
-	constructor(processorState: ProcessorState) {
-		super(processorState);
-		this.lexer = new Lexer(processorState);
+	@Inject injector: N4Injector
+	
+	// workaround because @PerInjectionSingleton not implemented!
+	resetState() {
+		this.processorState = this.injector.create(ProcessorState);
+		this.lexer.processorState = this.processorState; 		
 	}
 
 	parse(...inputSources: InputSource): Document {
 		this.lexer.addInputSource(inputSources);
+		this.resetState();
+		
 		let tokenEntry: IteratorEntry<Token>;
-		let document = new Document();
-		this.currentElement = document;
-		this.cdataTarget = document;
+		this.createElement(this.documentHandler);
+		let document = this.processorState.activeExtension.element as Document;
+		
+		// Init parser
+		this.indentLevel = 0;
+		this.eolCount = 0;
 
+		// Do parse
 		while (!(tokenEntry = this.lexer.next()).done) {
 			let token = tokenEntry.value;
-
-			if (token.category == Category.EOL) {
-
+			
+			switch (token.category) {
+			case Category.EOL:
 				this.eolCount++;
-				if (this.eolCount == 2) {
-					if (this.cdataTarget) {
-						this.cdataTarget = undefined;
-					}
-					this.closeInlineElements();
+				if (this.eolCount == 2) { // new paragraph
+					this.popToBlock();
 				}
 				this.indentLevel = 0;
-				continue;
-			}
-			if (token.category == Category.INDENT) {
+				break;
+			case Category.INDENT:
 				this.indentLevel++;
-				continue;
-			}
-			if (token.category == Category.CMD || token.category == Category.CTRL) { 
-				let extEl = token.extension;
-				if (extEl.extension.block) {
-					this.closeInlineElements();
-					while (this.indentLevel < this.currentElement.indentLevel) {
-						this.currentElement = this.currentElement.parent;
-					}
-				}
-				
-				let context = this.createExtensionContext();
-				if (this.isEndCtrl(extEl)) {
-					if(extEl!=this.processorState.openInlineExtensions.pop()) {
-						throw new Error("Internal error, closing inline extension is not last one");
-					}
-					extEl.extension.closeElement(extEl.element, context);
-					this.currentElement = this.currentElement.parent;
-				} else {
-					this.currentElement = extEl.extension.createElement(context);
-				
-					if (extEl.extension.block) {
-						this.processorState.openBlockExtensions.push({extension: extEl.extension, element: this.currentElement});
+				this.eolCount = 0;
+				break;
+			case Category.CMD:
+			case Category.CTRL: 
+				let activeExt = token.activeExtension;
+				if (activeExt.element) { // close this element
+					this.closeElement();
+				} else { // create new element
+					if (activeExt.extension.elementType!=ElementType.INLINE) {
+						this.popToBlock();
 					} else {
-						this.processorState.openInlineExtensions.push({extension: extEl.extension, element: this.currentElement});
+						this.ensureCDATAContainer();
 					}
+					activeExt.element = activeExt.extension.createElement(this.createExtensionContext());
+					this.processorState.activeExtensions.push(activeExt);
 				}
-				this.cdataTarget = this.currentElement;
-				continue;
-
+				this.eolCount = 0;
+				break;
+			default:
+				let cdataContainer = this.ensureCDATAContainer();
+				if (this.eolCount==1 && cdataContainer.element.tailCDATA) {
+					cdataContainer.element.addCDATA(" ");	
+				}
+				cdataContainer.element.addCDATA(token.rawValue);
+				this.eolCount = 0;
 			}
-			this.adjustCDataTarget();
-			if (this.eolCount == 1) {
-				this.cdataTarget.addCDATA(" ");
-			}
-			this.eolCount = 0;
-			this.cdataTarget.addCDATA(token.rawValue);
 		}
 
 		return document;
 	}
-
-	private isEndCtrl(extEl: ExtensionElement) {
-		return extEl && extEl.element;
+	
+	popToBlock(): ActiveExtension<Block> {
+		while (this.processorState.activeExtensions) {
+			let activeExt = peek(this.processorState.activeExtensions);
+			if (activeExt.element instanceof Block && activeExt.element.indentLevel <= this.indentLevel) {
+				this.indentLevel = activeExt.element.indentLevel; // TODO ?
+				return activeExt as ActiveExtension<Block> 
+			}
+			activeExt.extension.closeElement(activeExt.element, this.createExtensionContext());
+			this.processorState.activeExtensions.pop();
+		}
+		throw new Error("Document missing")
 	}
+	
+	createElement(extension: Extension) {
+		let element = extension.createElement(this.createExtensionContext());
+		let activeExt ={
+			extension: extension, element: element
+		}
+		this.processorState.activeExtensions.push(activeExt);
+	}
+	
+	closeElement() {
+		let activeElement = this.processorState.activeExtensions.pop();
+		activeElement.extension.closeElement(activeElement.element, this.createExtensionContext());
+	}
+	
+	ensureCDATAContainer(): ActiveExtension<CDATAContainer> {
+		let activeExt = this.processorState.activeExtension;
+		if (! (activeExt.element instanceof CDATAContainer)) {
+			if (this.indentLevel>activeExt.element.indentLevel) {
+				this.createElement(this.preformattedHandler);
+			} else {
+				this.createElement(this.paragraphHandler);
+			}
+		}
+		return this.processorState.activeExtension as  ActiveExtension<CDATAContainer>;
+	} 
 
 	private closeInlineElements() {
-		while (this.processorState.openInlineExtensions.length > 0) {
-			let ext = this.processorState.openInlineExtensions.pop();
-			ext.extension.closeElement(ext.element, this.createExtensionContext());
+		while (this.processorState.activeInlineExtension) {
+			this.closeElement()
 		}
-
 	}
 
-	private adjustCDataTarget() {
-		if (this.indentLevel < this.currentElement.indentLevel) {
-			this.closeInlineElements();
-			while (this.indentLevel < this.currentElement.indentLevel) {
-				this.currentElement = this.currentElement.parent;
-				this.cdataTarget = null;
-			}
-		}
-
-		if (this.indentLevel > this.currentElement.indentLevel) {
-			this.closeInlineElements();
-			this.currentElement = new Element("pre", this.indentLevel, this.currentElement);
-			this.cdataTarget = this.currentElement;
-		// TODO switch parser and lexer to pre-formatting				
-		}
-
-		if (!this.cdataTarget) {
-
-			while (this.processorState.openBlockExtensions.length > 0) {
-				let ext = this.processorState.openBlockExtensions.pop();
-				ext.extension.closeElement(ext.element, this.createExtensionContext());
-			}
-
-			while (this.indentLevel < this.currentElement.indentLevel) {
-				this.currentElement = this.currentElement.parent;
-			}
-			this.currentElement = new Element("p", this.indentLevel, this.currentElement);
-			this.cdataTarget = this.currentElement;
-
-		}
-
-	}
 
 	createExtensionContext(): ExtensionContext {
+		
+		let currentElement = this.processorState.activeExtension ? this.processorState.activeExtension.element : undefined;
+		let indentLevel = currentElement ? Math.max(currentElement.indentLevel, this.indentLevel) : this.indentLevel;
 		return new ExtensionContext({
-				indentLevel: this.indentLevel,
-				parent: this.currentElement,
+				indentLevel: indentLevel,
+				currentElement: currentElement,
 				processorState: this.processorState,
 				inputSource: this.lexer.is
 			});

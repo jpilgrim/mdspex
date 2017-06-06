@@ -1,6 +1,11 @@
-import {Element} from "Nodes";
 import {ProcessorState} from "InputProcessor";
 import {InputSource} from "InputSource";
+import {Block} from "Nodes";
+import {Document} from "Nodes";
+import {Element} from "Nodes";
+import {ElementType} from "Nodes";
+import {Inline} from "Nodes";
+import {Paragraph} from "Nodes";
 
 
 export public class ExtensionContext {
@@ -9,7 +14,7 @@ export public class ExtensionContext {
 	public indentLevel: int;
 
 	@Final
-	public parent: Element;
+	public currentElement: Element;
 
 	@Final
 	public processorState: ProcessorState;
@@ -28,7 +33,19 @@ export public class ExtensionContext {
 	}
 }
 
-export public interface ~Extension {
+export public interface ~ElementProvider {
+	/**
+	 * Creates the element.
+	 */
+	createElement(context: ExtensionContext): Element
+
+	/**
+	 * Close element previously created with createElement. This method is only called if ctrlEnd returns not undefined.
+	 */
+	closeElement(element: Element, context: ExtensionContext)
+}
+
+export public interface ~Extension extends ElementProvider {
 
 	/**
 	 * Name of extension.
@@ -42,10 +59,10 @@ export public interface ~Extension {
 	get refByName(): boolean
 
 	/**
-	 * True if extension is a block extension. If false, it is inline. An extension cannot be both.
+	 * Returns element type.
 	 */
-	get block(): boolean
-
+	get elementType(): ElementType
+	
 	/**
 	 * Control-character(s) which is used to identify whether ctrlMatch is called for further evaluation. 
 	 * If ctrlStart is undefined or empty, the extension can only be referenced by name. The returned
@@ -74,15 +91,7 @@ export public interface ~Extension {
 	 */
 	matchCtrlEnd(line: string): int
 
-	/**
-	 * Creates the element.
-	 */
-	createElement(context: ExtensionContext): Element
-
-	/**
-	 * Close element previously created with createElement. This method is only called if ctrlEnd returns not undefined.
-	 */
-	closeElement(element: Element, context: ExtensionContext)
+	
 }
 
 /**
@@ -94,12 +103,6 @@ export public abstract class AbstractExtension implements Extension {
 	@Override
 	public get refByName(): boolean {
 		return false
-	}
-
-	/** Returns true by default. */
-	@Override
-	public get block(): boolean {
-		return true
 	}
 
 	/** Returns undefined by default, i.e., extension cannot be referenced by control sequence. */
@@ -128,14 +131,7 @@ export public abstract class AbstractExtension implements Extension {
 		return 0
 	}
 
-	/**
-	 * Creates element with name and appends it to the parent element with given indentation.
-	 */
-	@Override
-	public createElement(context: ExtensionContext): Element {
-		return new Element(this.name, context.indentLevel, context.parent);
-	}
-
+	
 	/**
 	 * Does nothing by default.
 	 */
@@ -158,40 +154,23 @@ export public class NamedBlockCommand extends AbstractExtension {
 	public get refByName(): boolean {
 		return true
 	}
-
-}
-
-export public class ATXHeading extends AbstractExtension {
-
+	
 	@Override
-	public get ctrlStart(): string {
-		return "#"
+	public get elementType(): ElementType {
+		return ElementType.BLOCK
 	}
-
-	@Override
-	public get name(): string {
-		return "ATXHeading"
-	}
-
+	
 	/**
-	 * Returns level of heading (1-6).
+	 * Creates element with name and appends it to the parent element with given indentation.
 	 */
 	@Override
-	public matchCtrlStart(line: string): int {
-		let res = line.match(/^#{1,6}\s/);
-		// [ '###### ', index: 0, input: '###### Hello' ]
-		if (res) {
-			return res[0].length - 1;
-		}
-		return 0;
-	}
-
-	@Override
 	public createElement(context: ExtensionContext): Element {
-		let level = this.matchCtrlStart(context.restOfLine);
-		return new Element("H" + level, context.indentLevel, context.parent);
+		return new Block(this.name, context.indentLevel+1, context.currentElement);
 	}
+	
+
 }
+
 
 export public class InlineFormatting extends AbstractExtension {
 	
@@ -205,6 +184,11 @@ export public class InlineFormatting extends AbstractExtension {
 	}
 	
 	@Override
+	public get elementType(): ElementType {
+		return ElementType.INLINE
+	}
+	
+	@Override
 	public get ctrlStart(): string {
 		return this.ctrlChar;
 	}
@@ -213,11 +197,6 @@ export public class InlineFormatting extends AbstractExtension {
 		return this.ctrlChar;
 	}
 	
-	@Override
-	public get block(): boolean {
-		return false
-	}
-
 	@Override
 	public matchCtrlStart(line: string): int {
 		if (line.startsWith(this.ctrlStart)) {
@@ -233,19 +212,54 @@ export public class InlineFormatting extends AbstractExtension {
 
 	@Override
 	public createElement(context: ExtensionContext): Element {
-		return new Element(this.name, context.indentLevel, context.parent);
+		return new Inline(this.name, context.indentLevel, context.currentElement);
 	}
 }
 
-export public class DefaultExtensions {
-
-	extensions: [Extension];
-	constructor() {
-		this.extensions = ["NOTE", "INFO", "WARNING", "TODO"].map(name => new NamedBlockCommand(name));
-		this.extensions.push(new ATXHeading());
-		this.extensions.push(new InlineFormatting('*', 'strong'));
-		this.extensions.push(new InlineFormatting('_', 'em'));
-		
+export public class DocumentHandler extends AbstractExtension {
+	@Override
+	public get name(): string {
+		return "p";
 	}
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		return new Document(); 
+	}
+	
+	@Override
+	public get elementType(): ElementType {
+		return ElementType.BLOCK;
+	}
+}
 
+export public class ParagraphHandler extends AbstractExtension {
+	@Override
+	public get name(): string {
+		return "p";
+	}
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		return new Paragraph("p", context.indentLevel, context.currentElement);
+	}
+	
+	@Override
+	public get elementType(): ElementType {
+		return ElementType.PAR
+	}
+}
+
+export public class PreformattedHandler extends AbstractExtension {
+	@Override
+	public get name(): string {
+		return "pre";
+	}
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		return new Paragraph("pre", context.indentLevel, context.currentElement);
+	}
+	
+	@Override
+	public get elementType(): ElementType {
+		return ElementType.PAR
+	}
 }

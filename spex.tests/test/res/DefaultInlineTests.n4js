@@ -1,0 +1,13 @@
+import {ResourceBasedTest} from "ResourceBasedTest";
+
+
+export public class DefaultInlineTests extends ResourceBasedTest {
+
+	@Parameters("{index}")
+    public static getSomeParameters() {
+        return ["em_1", "em_2"].map(s=>[s]);
+    }
+    
+    
+	
+}

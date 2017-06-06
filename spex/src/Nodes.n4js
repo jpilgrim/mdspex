@@ -1,8 +1,13 @@
 
+export public enum ElementType {
+	BLOCK, INLINE, PAR
+}
 
 export public abstract class Node {
-	@Final public parent: Element;
-	
+
+	@Final
+	public parent: Element;
+
 	startOffset: int;
 	endOffset: int;
 
@@ -13,18 +18,17 @@ export public abstract class Node {
 		if (this instanceof Document) {
 			return;
 		}
-		
+
 		if (!parent) {
 			throw new Error("node requires a parent");
 		}
-		
+
 		this.parent = parent;
 		if (!parent.nodes) {
 			parent.nodes = [this];
 		} else {
 			parent.nodes.push(this);
 		}
-
 	}
 
 	public abstract toXML(indent=0): string
@@ -32,14 +36,18 @@ export public abstract class Node {
 
 const TAB = "    ";
 
-export public class Element extends Node {
-	@Final name: string;
-	@Final indentLevel: int;
+export public abstract class Element extends Node {
+
+	@Final
+	name: string;
+
+	@Final
+	indentLevel: int;
 
 	id: string;
 	attributes: [Attribute];
 	nodes: [Node];
-	
+
 	constructor(name: string, indentLevel: int, parent: Element) {
 		super(parent);
 		this.name = name;
@@ -48,47 +56,122 @@ export public class Element extends Node {
 
 	@Override
 	public toXML(): string {
-		return TAB.repeat(this.indentLevel) + "<" + this.name + 
-		(this.attributes ? 
-			this.attributes.map(a => " " + a.name + '= "' + a.value + '"').join("") 
-			: ""
-		) + 
-		(this.nodes ?
-			(">\n" 
-				+ this.nodes.map(c => c.toXML()).join("\n") 
-				+ "\n" + TAB.repeat(this.indentLevel) + "</" + this.name +">"
-			) : " />"
-		);
+		let parts: [string] = [];
+		parts.push("<" + this.name + (this.attributes ?
+				this.attributes.map(a => " " + a.name + '= "' + a.value + '"').join("") : ""));
+
+		if (this.nodes) {
+			parts.push(">");
+			parts.push(this.nodes.map((c, i) => {
+					if (!(c instanceof CDATA || i > 0)) {
+						if (c instanceof Element)
+							return "\n" + TAB.repeat((c as Element).indentLevel) + c.toXML();
+						else 
+							return "\n" + TAB.repeat(this.indentLevel) + c.toXML();
+					} else {
+						return c.toXML();
+					}
+				}).join("\n"));
+			if (!(this.nodes[this.nodes.length - 1] instanceof CDATA)) {
+				parts.push("\n" + TAB.repeat(this.indentLevel));
+			}
+			parts.push("</" + this.name + ">");
+		} else {
+			parts.push(" />");
+		}
+		return parts.join("");
 	}
 
+	/**
+	 * Returns the closest block element, either itself or container.
+	 */
+	public get block(): Block {
+		if (this.parent) return this.parent.block;
+		return undefined;
+	}
+	
+	public abstract type(): ElementType
+
+}
+
+/**
+ * A block contains other elements but no CDATA directly.
+ */
+export public class Block extends Element {
+
+	/**
+	 * Returns this.
+	 */
+	@Override
+	public get block(): Block {
+		return this;
+	}
+	
+	@Override
+	public type(): ElementType {
+		return ElementType.BLOCK
+	}
+}
+
+export public abstract class CDATAContainer extends Element {
+
+	public get tailCDATA(): string {
+		if (this.nodes && this.nodes[this.nodes.length - 1] instanceof CDATA) {
+			let cdata = this.nodes[this.nodes.length - 1] as CDATA;
+			return cdata.content;
+		}
+		return "";
+	}
+	
 	public addCDATA(s: string) {
 		let cdata: CDATA;
-
 		if (this.nodes && this.nodes[this.nodes.length - 1] instanceof CDATA) {
 			cdata = this.nodes[this.nodes.length - 1] as CDATA;
 		} else {
 			cdata = new CDATA(this);
 		}
-		cdata.content = cdata.content + s;
-	}
-	
-	public get tailCDATA(): string {
-		if (this.nodes && this.nodes[this.nodes.length - 1] instanceof CDATA) {
-			let cdata = this.nodes[this.nodes.length - 1] as CDATA;
-			return cdata.content
-		}
-		return "";
+		cdata.add(s);
 	}
 
 }
+
+/** 
+ * An inline element may contain CDATA or other inline elements, 
+ * but not blocks, paragraphs or lines.
+ */
+export public class Inline extends CDATAContainer {
+	@Override
+	public type(): ElementType {
+		return ElementType.INLINE
+	}
+}
+
+/**
+ * A paragraph can only contain CDATA or inline elements, but no block elements nor
+ * other paragraphs. 
+ */
+export public class Paragraph extends CDATAContainer {
+	@Override
+	public type(): ElementType {
+		return ElementType.PAR
+	}
+}
+
 
 export public class CDATA extends Node {
 	content = "";
 
 	@Override
 	public toXML(): string {
-		return TAB.repeat(this.parent.indentLevel) + this.content;
+		return this.content;
 	}
+
+	public add(s: string) {
+		this.content = this.content + s;
+	}
+
+	
+
 }
 
 export public class Attribute {
@@ -96,7 +179,7 @@ export public class Attribute {
 	value: string;
 }
 
-export public class Document extends Element {
+export public class Document extends Block {
 	indexes: Map<string, [Element]>;
 
 	constructor() {

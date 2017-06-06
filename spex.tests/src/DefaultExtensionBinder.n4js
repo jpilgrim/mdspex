@@ -1,0 +1,12 @@
+import {ProcessorState} from "InputProcessor";
+import {DefaultProcessorState} from "InputProcessor";
+
+@Binder
+@Bind(ProcessorState, ProcessorState)
+export public class NoExtensionBinder {}
+
+
+@Binder
+@Bind(ProcessorState, DefaultProcessorState)
+export public class DefaultExtensionBinder {}
+

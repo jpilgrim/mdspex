@@ -1,6 +1,7 @@
 import {Category} from "Category";
 import {shortCategory} from "Category";
-import {ExtensionElement} from "InputProcessor";
+import {Element} from "Nodes";
+import {ActiveExtension} from "InputProcessor";
 
 
 
@@ -50,7 +51,7 @@ export public abstract class Token {
 	/**
 	 * Set if token is to be handled by an extension, undefined by default.
 	 */
-	public get extension(): ExtensionElement { return undefined }
+	public get activeExtension(): ActiveExtension<Element> { return undefined }
 }
 
 export public class CharacterToken extends Token {
@@ -77,11 +78,11 @@ export public class ExtensionToken extends CharacterToken {
 	
 	@Final
 	@Override
-	public extension: ExtensionElement;
+	public activeExtension: ActiveExtension<Element>;
 	
-	public constructor(character: string, category: Category, extension: ExtensionElement) {
+	public constructor(character: string, category: Category, activeExtension: ActiveExtension<Element>) {
 		super(character, category);
-		this.extension = extension;
+		this.activeExtension = activeExtension;
 	}
 }
 
