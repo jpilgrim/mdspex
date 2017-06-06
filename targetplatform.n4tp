@@ -1,0 +1,13 @@
+{
+  "location" : [
+  {
+      "config" : { },
+      "repoType" : "npm",
+      "projects" : {
+        "json-cycle" : {
+          "version" : "@1.1.0"
+        }
+      }
+    }
+ ]
+}

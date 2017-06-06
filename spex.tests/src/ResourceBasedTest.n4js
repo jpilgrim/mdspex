@@ -38,14 +38,29 @@ interface IResourceBasedTest {
 		return name;
 	}
 
-
 	get testAbsResPath(): string {
 		return join("spex.tests", "res");
 	}
 
 	public async loadSourceAndExpectation(testName: string): SourceAndExpectation {
 		let np = global.process.env.NODE_PATH as string;
+		
+		// console.log("NODE_PATH", np);
+		
 		let resPath = np.split(delimiter).find(s => s.endsWith(this.testAbsResPath));
+		if (!resPath) { // TODO res not in node_path when using n4jsc, workaround:
+			resPath = np.split(delimiter).find(s => s.endsWith("spex.tests/src-gen/es"));
+			if (resPath) {
+				resPath = resPath.substring(0, resPath.length-10) + "res";
+			}
+			
+		}
+		if (!resPath) {
+			throw new Error("Resources for tests not found.")
+		}
+
+
+		// console.log("resPath", resPath, "this.testResPath" ,this.testResPath,"TestName", testName)
 
 		let fullPath = join(resPath, this.testResPath, testName + ".spex_xml");
 		// console.log(fullPath);

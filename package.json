@@ -1,0 +1,18 @@
+{
+  "name": "spex",
+  "version": "0.1.0",
+  "author": "Jens von Pilgrim <developer@jevopi.de>",
+  "license": "EPL-1.0",
+  "description": "Extensible markdown for specifications written in N4JS/JavaScript",
+  "scripts": {
+    "test": "n4js-mangelhaft --scan . --compile --targetPlatformFile targetplatform.n4tp --targetPlatformInstallLocation build/npm --xunitReportFile build/spex-test-report.xml --xunitReportName spex-test-report --xunitReportPackage spex.tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jpilgrim/spex.git"
+  },
+  "keywords": [],
+  "devDependencies": {
+    "n4js-node-mangelhaft": "latest"
+  }
+}
