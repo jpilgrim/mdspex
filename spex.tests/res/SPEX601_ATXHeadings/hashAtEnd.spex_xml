@@ -1,0 +1,19 @@
+# single closing #
+## more closing #####################
+### spaces closing              ######
+  #### spaces before and closing   ######
+  #####    more spaces before and closing     ###
+## hash and ### char
+# hash no space#
+# hash esc \###
+_______________________________________
+<spex>
+<h1>single closing</h1>
+<h2>more closing</h2>
+<h3>spaces closing</h3>
+<h4>spaces before and closing</h4>
+<h5>more spaces before and closing</h5>
+<h2>hash and ### char</h2>
+<h1>hash no space#</h1>
+<h1>hash esc ###</h1>
+</spex>

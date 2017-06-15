@@ -1,7 +1,7 @@
+import {Document} from "ASTNodes";
 import {DefaultExtensionBinder} from "DefaultExtensionBinder";
 import {NoExtensionBinder} from "DefaultExtensionBinder";
 import {InputSource} from "InputSource";
-import {Document} from "Nodes";
 import {Parser} from "Parser";
 import {readFile} from "fs";
 import {Assert} from "n4/mangel/assert/Assert";
@@ -15,7 +15,7 @@ export public interface ~SourceAndExpectation {
 	expected: string;
 }
 
-interface IResourceBasedTest {
+export interface IResourceBasedTest {
 	
 	get injector(): N4Injector;
 	get name(): string;
@@ -34,7 +34,6 @@ interface IResourceBasedTest {
 		if (name.endsWith("Test")) {
 			name = name.substring(0, name.length-4);
 		}
-		name = name.charAt(0).toLowerCase() + name.substring(1, name.length);
 		return name;
 	}
 

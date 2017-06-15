@@ -1,0 +1,20 @@
+import {ProcessorState} from "ProcessorState";
+
+
+export public class Processor {
+
+	private _processorState: ProcessorState;
+
+	/**
+	 * Subclasses may override but must call super then as well 
+	 * in order to set state.
+	 */
+	init(processorState: ProcessorState) {
+		this._processorState = processorState;
+	}
+
+	get processorState(): ProcessorState {
+		return this._processorState;
+	}
+
+}

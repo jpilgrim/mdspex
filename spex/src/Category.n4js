@@ -1,5 +1,9 @@
 export public enum Category {
 	/**
+	 * Escape character, enforces the following character to letter.
+	 */
+	ESC,
+	/**
 	 * Suffix identifying commands, ":" by default. The token value contains the command without the suffix.
 	 */
 	CMD,
@@ -46,11 +50,6 @@ export public enum Category {
 	OTHER,
 
 	/**
-	 * Tex: Escape character, '\' by default
-	 */
-	TEX_ESC,
-
-	/**
 	 * Tex: Beginning of group {
 	 */
 	TEX_BEGINGROUP,
@@ -86,6 +85,7 @@ export public function shortCategory(cat: Category): string {
 }
 
 const defaultCharacters = new Map<Category, string>([
+		[Category.ESC, '\\'],
 		[Category.CMD, ':'],
 		[Category.CTRL, ''],
 		[Category.EOL, '\n'],
@@ -94,7 +94,6 @@ const defaultCharacters = new Map<Category, string>([
 		[Category.SPACE, ' \t'],
 		[Category.LETTER, ''], // no default, computed as "rest"
 		[Category.OTHER, ''], // no explicit characters, ranges defined below
-		[Category.TEX_ESC, '\\'],
 		[Category.TEX_BEGINGROUP, ''], // '{' for tex
 		[Category.TEX_ENDGROUP, ''], // '{' for tex
 		[Category.TEX_SUPER, ''], // '^' for tex
@@ -105,6 +104,8 @@ export public class CategorySwitch <INPUT, RETURN> {
 
 	public switchCategory(cat: Category, input: INPUT): RETURN {
 		switch (cat) {
+			case Category.ESC:
+				return this.caseEsc(input);
 			case Category.CMD:
 				return this.caseCmd(input);
 			case Category.CTRL:
@@ -123,8 +124,6 @@ export public class CategorySwitch <INPUT, RETURN> {
 				return this.caseIndent(input);
 			case Category.SPACE:
 				return this.caseSpace(input);
-			case Category.TEX_ESC:
-				return this.caseTexEsc(input);
 			case Category.TEX_BEGINGROUP:
 				return this.caseTexBeginGroup(input);
 			case Category.TEX_ENDGROUP:
@@ -139,6 +138,9 @@ export public class CategorySwitch <INPUT, RETURN> {
 		}
 	}
 
+	protected caseEsc(input: INPUT): RETURN {
+		return this.defaultCase(Category.ESC, input);
+	}
 	protected caseCmd(input: INPUT): RETURN {
 		return this.defaultCase(Category.CMD, input);
 	}
@@ -168,10 +170,6 @@ export public class CategorySwitch <INPUT, RETURN> {
 
 	protected caseOther(input: INPUT): RETURN {
 		return this.defaultCase(Category.OTHER, input);
-	}
-
-	protected caseTexEsc(input: INPUT): RETURN {
-		return this.defaultCase(Category.TEX_ESC, input);
 	}
 
 	protected caseTexBeginGroup(input: INPUT): RETURN {

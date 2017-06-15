@@ -1,5 +1,5 @@
-import {ProcessorState} from "InputProcessor";
-import {DefaultProcessorState} from "InputProcessor";
+import {DefaultProcessorState} from "ProcessorState";
+import {ProcessorState} from "ProcessorState";
 
 @Binder
 @Bind(ProcessorState, ProcessorState)

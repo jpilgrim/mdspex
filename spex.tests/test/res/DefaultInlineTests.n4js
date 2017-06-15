@@ -3,7 +3,7 @@ import {ResourceBasedTest} from "ResourceBasedTest";
 
 export public class DefaultInlineTests extends ResourceBasedTest {
 
-	@Parameters("{index}")
+	@Parameters("[{index}] {0}")
     public static getSomeParameters() {
         return ["em_1", "em_2"].map(s=>[s]);
     }

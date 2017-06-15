@@ -18,7 +18,7 @@ export public class SPEX101_CoreNoExtensionsTests extends ResourceBasedCoreTest 
 		return "SPEX101_core";
 	}
 
-	@Parameters("{index}")
+	@Parameters("[{index}] {0}")
     public static getSomeParameters() {
         return coreTests.map(s=>[s]);
     }

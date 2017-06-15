@@ -3,7 +3,7 @@ import {ResourceBasedTest} from "ResourceBasedTest";
 
 export public class StdBlockCmdsTests extends ResourceBasedTest {
 
-	@Parameters("{index}")
+	@Parameters("[{index}] {0}")
     public static getSomeParameters() {
         return ["info"].map(s=>[s]);
     }

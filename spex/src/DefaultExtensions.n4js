@@ -1,10 +1,22 @@
+import {Document} from "ASTNodes";
+import {Element} from "ASTNodes";
+import {ElementType} from "ASTNodes";
+import {Paragraph} from "ASTNodes";
+import {AbstractExtension} from "Extension";
+import {AbstractOutputProvider} from "Extension";
 import {Extension} from "Extension";
+import {ExtensionContext} from "Extension";
+import {ExtensionEndMarker} from "Extension";
+import {IdentityProvider} from "Extension";
 import {InlineFormatting} from "Extension";
 import {NamedBlockCommand} from "Extension";
+import {OutputContext} from "Extension";
+import {OutputProvider} from "Extension";
+import {HTMLElement} from "HTMLNodes";
 import {ATXHeading} from "extensions/ATXHeadings";
 
 export public class DefaultExtensions {
-
+	
 	extensions: [Extension];
 	constructor() {
 		this.extensions = ["NOTE", "INFO", "WARNING", "TODO"].map(name => new NamedBlockCommand(name));
@@ -14,4 +26,105 @@ export public class DefaultExtensions {
 
 	}
 
+}
+
+
+export public class DocumentHandler extends AbstractExtension {
+
+	@Override
+	public get name(): string {
+		return "spex";
+	}
+
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		return new Document();
+	}
+
+	@Override
+	public get elementType(): ElementType {
+		return ElementType.BLOCK;
+	}
+
+	@Override
+	public get endMarker(): ExtensionEndMarker {
+		return ExtensionEndMarker.NONE;
+	}
+}
+
+export public class ParagraphHandler extends AbstractExtension {
+
+	const ParagraphProvider = new IdentityProvider("p");
+
+	@Override
+	public get name(): string {
+		return "p";
+	}
+
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		return new Paragraph("p", context.indentLevel, context.currentElement);
+	}
+
+	@Override
+	public get elementType(): ElementType {
+		return ElementType.PAR;
+	}
+
+	@Override
+	public get endMarker(): ExtensionEndMarker {
+		return ExtensionEndMarker.NONE;
+	}
+	
+	@Override
+	public get outputProvider(): OutputProvider {
+		return ParagraphHandler.ParagraphProvider; 
+	}
+}
+
+export public class PrecodeToPreCodeProvider extends AbstractOutputProvider {
+/**
+	 * Default provider returns empty array, matches all.
+	 */
+	@Override
+	public get names(): [string] {
+		return ["precode"];
+	}
+	
+	@Override
+	public process(context: OutputContext): HTMLElement {
+		let pre = context.factory.createElement("pre");
+		super.copyAttributes(pre, context);
+		let code = context.factory.createElement("code");
+		pre.appendChild(code);
+		return code;
+	}
+}
+
+export public class PreformattedHandler extends AbstractExtension {
+
+	@Override
+	public get name(): string {
+		return "precode";
+	}
+
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		return new Paragraph("precode", context.indentLevel, context.currentElement);
+	}
+
+	@Override
+	public get elementType(): ElementType {
+		return ElementType.PAR;
+	}
+
+	@Override
+	public get endMarker(): ExtensionEndMarker {
+		return ExtensionEndMarker.NONE;
+	}
+	
+	@Override
+	public get outputProvider(): OutputProvider {
+		return ParagraphHandler.ParagraphProvider; 
+	}
 }

@@ -1,19 +1,19 @@
+import {Element} from "ASTNodes";
+import {ElementType} from "ASTNodes";
 import {Category} from "Category";
 import {CategorySwitch} from "Category";
 import {Extension} from "Extension";
-import {InputProcessor} from "InputProcessor";
 import {InputLocation} from "InputSource";
-import {InputSource} from "InputSource";
-import {Element} from "Nodes";
+import {Processor} from "Processor";
+import {ActiveExtension} from "ProcessorState";
+import {ProcessorState} from "ProcessorState";
 import {CharacterToken} from "Token";
 import {ExtensionToken} from "Token";
 import {Token} from "Token";
-import {ActiveExtension} from "InputProcessor";
 
-export public class Lexer extends InputProcessor implements Iterator<Token> {
-
-	inputSources: [InputSource] = [];
-	is: InputSource = null;
+export public class Lexer extends Processor implements Iterator<Token> {
+	
+	
 	state: LexerState;
 	
 	@Inject
@@ -22,77 +22,62 @@ export public class Lexer extends InputProcessor implements Iterator<Token> {
 	stateS: StateSkippingSpaces;
 	@Inject
 	stateM: StateMiddleOfLine;
-
-	public addInputSource(inputSources: InputSource | [InputSource]) {
-		this.inputSources = this.inputSources.concat(inputSources);
-		if (this.state==null) {
-			this.state = this.stateN;
-		}
+	
+	@Override
+	init(processorState: ProcessorState) {
+		super.init(processorState);
+		this.state = this.stateN;
 	}
 
+	/**
+	 * Delegates to processor state's inputSource
+	 */
 	public get location(): InputLocation {
-		if (this.is == null) {
-			return new InputLocation(0, 0, 0, "no source loaded");
-		}
-		return this.is.location;
+		return this.processorState.inputSource.location;
 	}
 
+	/**
+	 * Delegates to processor state's inputSource
+	 */
 	public hasNext(): boolean {
-		if (this.is == null) {
-			this.nextInputSource();
-		}
-		if (this.is == null || !this.is.hasNext()) {
-			if (!this.nextInputSource()) {
-				return false;
-			}
-		}
-		return this.is.hasNext();
+		return this.processorState.inputSource.hasNext();
 	}
 
 	@Override
 	public next(): IteratorEntry<Token> {
+		this.processorState.currentToken = null;
 		if (this.hasNext()) {
 			let token = this.state.nextToken(this.nextChar());
 			if (token != undefined) {
+				this.processorState.currentToken = token;
 				return {done: false, value: token};
 			}
 		}
 		return {done: true, value: undefined};
 	}
 
+	/**
+	 * Delegates to processor state's inputSource
+	 */
 	nextChar(): string {
-		if (this.is == null) {
-			if (!this.nextInputSource()) {
-				throw new Error("No more input sources");
-			}
-		}
-		return this.is.nextChar();
+		return this.processorState.inputSource.nextChar();
 	}
 
 	/**
-	 * Consumes the given numberOfChars without switching to next input source.
+	 * Delegates to processor state's inputSource
 	 */
 	consume(numberOfChars=1): string {
-		return this.is.consume(numberOfChars);
+		return this.processorState.inputSource.consume(numberOfChars);
 	}
 
+	/**
+	 * Delegates to processor state's inputSource
+	 */
 	peekChar(lookahead: int =0): string {
-		if (this.is == null) {
-			if (!this.nextInputSource()) {
-				throw new Error("No more input sources");
-			}
-		}
-		return this.is.peek(lookahead);
+		return this.processorState.inputSource.peek(lookahead);
 	}
 
-	private nextInputSource(): boolean {
-		if (this.inputSources.length > 0) {
-			this.is = this.inputSources.shift();
-			this.changeToStateNewline();
-			return true;
-		}
-		return false;
-	}
+	
 
 	nextNonSpace(): string {
 		var c: string;
@@ -104,11 +89,11 @@ export public class Lexer extends InputProcessor implements Iterator<Token> {
 
 	skipSpaces() {
 		while (this.hasNext()) {
-			let c = this.is.peek();
+			let c = this.peekChar();
 			if (!this.isSpace(c)) {
 				return;
 			}
-			this.is.consume();
+			this.consume();
 		}
 	}
 
@@ -156,21 +141,29 @@ abstract class LexerState extends CategorySwitch<string, Token> {
 		return this.switchCategory(cat, c);
 	}
 	
-	protected getCtrlToken(input: string, extensionsByCtrlStart: Map<string, [Extension]>, lastCtrlStarted: ActiveExtension<Element> =): Token {
-		if (lastCtrlStarted && lastCtrlStarted.extension.ctrlEnd==input) {
-			let line = this.lexer.is.restOfLine;
-			let length = lastCtrlStarted.extension.matchCtrlStart(line);
-			let ctrl = input + this.lexer.consume(length-1);
-			return new ExtensionToken(ctrl, Category.CTRL, lastCtrlStarted);
-		}		
+	protected getCtrlToken(input: string, extensionsByCtrlStart: Map<string, [Extension]>, activeExts: [ActiveExtension<Element>]): Token {
+		
+		for (let i=activeExts.length-1; i>=0; i--) {
+			let ext = activeExts[i].extension;
+			if (input==ext.ctrlEnd) {
+				let length = ext.matchEnd(this.lexer.processorState.createExtensionContext());
+				if (length>0) {
+					let ctrl = input + this.lexer.consume(length-1);
+					return new ExtensionToken(ctrl, Category.CTRL, activeExts[i]);
+				}	
+			}
+			if (ext.elementType==ElementType.BLOCK) {
+				break;
+			}
+		}
 		
 		let matchingExtensions = extensionsByCtrlStart.get(input);
 		if (matchingExtensions) {
-			let maxLength = 0;
+			let maxLength = 1; // at least one character
 			let longest: [Extension] = [];
-			let line = this.lexer.is.restOfLine;
+			let context = this.lexer.processorState.createExtensionContext();
 			for (let ext of matchingExtensions) {
-					let length = ext.matchCtrlStart(line);
+					let length = ext.matchStart(context);
 					if (length > maxLength) {
 						longest = [ext];
 						maxLength = length;
@@ -229,6 +222,14 @@ abstract class LexerState extends CategorySwitch<string, Token> {
 	@Override
 	protected caseInvalid(input: string): Token {
 		throw new Error("Invalid character at " + this.lexer.location);
+	}
+	
+	@Override
+	protected caseEsc(input: string): Token {
+		if (this.lexer.peekChar()) {
+			input = this.lexer.nextChar();
+		}
+		return this.switchCategory(Category.LETTER, input);
 	}
 
 	/**
@@ -299,7 +300,7 @@ class StateNewline extends LexerState {
 
 	@Override
 	protected caseOther(input: string): Token {
-		let token = this.getCtrlToken(input, this.lexer.processorState.ctrlBlockOrParExtensions);
+		let token = this.getCtrlToken(input, this.lexer.processorState.ctrlBlockOrParExtensions, this.lexer.processorState.activeExtensions);
 		return token || super.caseOther(input);
 	}
 
@@ -329,7 +330,7 @@ class StateMiddleOfLine extends LexerState {
 	
 	@Override
 	protected caseOther(input: string): Token {
-		let token = this.getCtrlToken(input, this.lexer.processorState.ctrlInlineExtensions, this.lexer.processorState.activeInlineExtension);
+		let token = this.getCtrlToken(input, this.lexer.processorState.ctrlInlineExtensions, this.lexer.processorState.activeExtensions);
 		return token || super.caseOther(input);
 	}
  }

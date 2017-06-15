@@ -1,114 +1,104 @@
+import {NoExtensionBinder} from "DefaultExtensionBinder";
 import {InputSource} from "InputSource";
 import {Lexer} from "Lexer";
+import {ProcessorState} from "ProcessorState";
 import {Token} from "Token";
 import {Assert} from "n4/mangel/assert/Assert";
 import {N4Injector} from "n4js/lang/N4Injector";
-import {NoExtensionBinder} from "DefaultExtensionBinder";
-import {ProcessorState} from "InputProcessor";
 
 @GenerateInjector()
 @UseBinder(NoExtensionBinder)
 export public class LexerTest {
-	
-	@Inject injector: N4Injector;
-	
-	protected  assertTokens(expectedTokenString: string, lexer: Lexer) {
+
+	@Inject
+	injector: N4Injector;
+
+	protected assertTokens(expectedTokenString: string, lexer: Lexer) {
 		Assert.equal(this.tokenString(lexer), expectedTokenString);
 	}
 
 	tokenString(tokens: Iterator<Token>): string {
-		let tokenStrings: [string] = []
+		let tokenStrings: [string] = [];
 		let token: IteratorEntry<Token>;
 		while (!(token = tokens.next()).done) {
-			tokenStrings.push(token.value.toString())
+			tokenStrings.push(token.value.toString());
 		}
 		return tokenStrings.join(",");
 	}
-	
-	createLexer(): Lexer {
+
+	createLexer(sequence: string): Lexer {
 		let lexer = this.injector.create(Lexer);
-		lexer.processorState = this.injector.create(ProcessorState); // TODO remove, use PerInjection..
+		let processorState = this.injector.create(ProcessorState); // TODO remove, use PerInjection.. 
+		lexer.init(processorState);
+		processorState.setInputSource(new InputSource("test", sequence));
 		return lexer;
 	}
-	
+
 	@Test
 	public testEmpty() {
-		let p = this.createLexer();
-		p.addInputSource(new InputSource("test", ""));
+		let p = this.createLexer("");
 		this.assertTokens("", p);
 	}
 
 	@Test
 	public testSingleLetter() {
-		let p = this.createLexer();
-		p.addInputSource(new InputSource("test", "x"));
+		let p = this.createLexer("x");
 		this.assertTokens("L(x)", p);
 	}
 
 	@Test
 	public testLetters() {
-		let p = this.createLexer();
-		p.addInputSource(new InputSource("test", "abc"));
+		let p = this.createLexer("abc");
 		this.assertTokens("L(a),L(b),L(c)", p);
 	}
 
 	@Test
 	public testLettersAndSpaces() {
-		let p = this.createLexer();
-		p.addInputSource(new InputSource("test", "ab  c"));
+		let p = this.createLexer("ab  c");
 		this.assertTokens("L(a),L(b),S,L(c)", p);
 	}
 
 	@Test
 	public testLettersAndSpacesAtEnd() {
-		let p = this.createLexer();
-		p.addInputSource(new InputSource("test", "abc  "));
+		let p = this.createLexer("abc  ");
 		this.assertTokens("L(a),L(b),L(c),S", p);
 	}
-	
+
 	@Test
 	public testIndent() {
-		let p = this.createLexer();
-		p.addInputSource(new InputSource("test", "    abc"));
+		let p = this.createLexer("    abc");
 		this.assertTokens("T,L(a),L(b),L(c)", p);
 	}
 
 	@Test
 	public testIndent2() {
-		let p = this.createLexer();
-		p.addInputSource(new InputSource("test", "        abc"));
+		let p = this.createLexer("        abc");
 		this.assertTokens("T,T,L(a),L(b),L(c)", p);
 	}
-	
+
 	@Test
 	public testIndentAndSpaces() {
-		let p = this.createLexer();
-		p.addInputSource(new InputSource("test", "      abc"));
+		let p = this.createLexer("      abc");
 		this.assertTokens("T,L(a),L(b),L(c)", p);
 	}
-	
+
 	@Test
 	public testNewlines() {
-		let p = this.createLexer();
-		p.addInputSource(new InputSource("test", "a\n    b\n\n    c"));
+		let p = this.createLexer("a\n    b\n\n    c");
 		this.assertTokens("L(a),N,T,L(b),N,N,T,L(c)", p);
 	}
-	
+
 	@Test
 	public testMultipleNewlines() {
-		let p = this.createLexer();
-		p.addInputSource(new InputSource("test", "a\n    b\n\n\n    c"));
+		let p = this.createLexer("a\n    b\n\n\n    c");
 		this.assertTokens("L(a),N,T,L(b),N,N,N,T,L(c)", p);
 	}
-	
+
 	@Test
 	public testNewlinesAndTabs() {
-		let p = this.createLexer();
-		p.addInputSource(new InputSource("test", "a\n    \nb"));
+		let p = this.createLexer("a\n    \nb");
 		this.assertTokens("L(a),N,N,L(b)", p);
 	}
-
-		
 
 }
 //right click this module and select "Run As -> Test in Node.js" to see the test results

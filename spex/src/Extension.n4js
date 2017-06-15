@@ -1,12 +1,28 @@
-import {ProcessorState} from "InputProcessor";
-import {InputSource} from "InputSource";
-import {Block} from "Nodes";
-import {Document} from "Nodes";
-import {Element} from "Nodes";
-import {ElementType} from "Nodes";
-import {Inline} from "Nodes";
-import {Paragraph} from "Nodes";
+import {Block} from "ASTNodes";
+import {Element} from "ASTNodes";
+import {ElementType} from "ASTNodes";
+import {Inline} from "ASTNodes";
+import {HTMLElement} from "HTMLNodes";
+import {HTMLFactory} from "HTMLNodes";
+import {HTMLNode} from "HTMLNodes";
+import {IProcessorState} from "ProcessorState";
+import {CharacterToken} from "Token";
+import {Token} from "Token";
 
+export public class OutputContext {
+
+	public parentHTMLNode: HTMLNode;
+
+	public currentElement: Element;
+
+	@Final
+	public factory: HTMLFactory ;
+
+	@Final
+	public processorState: IProcessorState;
+
+	constructor(@Spec spec: ~i~this) {}
+}
 
 export public class ExtensionContext {
 
@@ -17,19 +33,38 @@ export public class ExtensionContext {
 	public currentElement: Element;
 
 	@Final
-	public processorState: ProcessorState;
-
-	@Final
-	public inputSource: InputSource;
+	public processorState: IProcessorState;
 
 	constructor(@Spec spec: ~i~this) {}
 
-	public get line(): string {
-		return this.inputSource.line;
+	public get currentLine(): string {
+		return this.processorState.inputSource.currentLine;
 	}
 
 	public get restOfLine(): string {
-		return this.inputSource.restOfLine;
+		return this.processorState.inputSource.restOfLine;
+	}
+
+	/**
+	 * Returns previous char as token. This is not the lexed token, but the previous char
+	 * with its category code.
+	 */
+	public get previousRawToken(): Token {
+		let c = this.processorState.inputSource.peek(-2); // -2: 0: peek, -1: current, -2: prev.
+		let cat = this.processorState.catcodeMap.category(c);
+		return new CharacterToken(c, cat);
+	}
+
+	/**
+	 * Returns the rest of line including the value of the current token (i.e., the ctrl)
+	 * if present.
+	 *
+	 * During lexing, restOfLine and restOfLineWithCtrl return the same result.
+	 * During parsing, the ctrl token is already consumed.
+	 */
+	public get restOfLineWithCtrl(): string {
+		if (this.processorState.currentToken) return this.processorState.currentToken.rawValue + this
+			.restOfLine; else return this.restOfLine;
 	}
 }
 
@@ -40,9 +75,109 @@ export public interface ~ElementProvider {
 	createElement(context: ExtensionContext): Element
 
 	/**
-	 * Close element previously created with createElement. This method is only called if ctrlEnd returns not undefined.
+	 * Close element previously created with createElement.
 	 */
 	closeElement(element: Element, context: ExtensionContext)
+
+	/**
+	 * Returns the output provider transforming the AST node to HTML.
+	 * If undefined is returned, the default ElementToDivProvider is used.
+	 */
+	get outputProvider(): OutputProvider
+}
+
+export public interface ~OutputProvider {
+	public get names(): [string]
+
+	public process(context: OutputContext): HTMLElement
+}
+
+export public abstract class AbstractOutputProvider implements OutputProvider {
+
+	@Override
+	public process(context: OutputContext): HTMLElement {
+		let element = this.createHTMLElement(context);
+		this.copyAttributes(element, context);
+		return element;
+	}
+
+	/**
+	 * Base implementation, creates HTML element with same name as given element.
+	 * If element name starts with underscore, undefined is returned.
+	 */
+	protected createHTMLElement(context: OutputContext): HTMLElement {
+		if (context.currentElement.name.startsWith("_")) {
+			return undefined;
+		}
+		return context.factory.createElement(context.currentElement.name);
+	}
+
+	/**
+	 * Base implementation, copies all attributes which do not start with an underscore.
+	 */
+	protected copyAttributes(element: HTMLElement, context: OutputContext) {
+		for (let a of context.currentElement.attributes) {
+			if (!a.name.startsWith("_")) {
+				let attr = context.factory.createAttr(a.name, a.value);
+				element.setAttributeNode(attr);
+			}
+		}
+	}
+
+}
+
+export public class IdentityProvider extends AbstractOutputProvider {
+
+	@Override
+	@Final
+	public names: [string];
+	
+	constructor(...names: string) {
+		this.names = names;
+	}
+}
+
+/**
+ * Defines how the end of an extension is detected by the lexer and parser.
+ *
+ * Except for the CTRL end, the end of the extension is detected by the parser and
+ * the characters signaling the end are not consumed by the extension. For 
+ * extensions/elements ending with CTRL, the end is detected by the lexer and
+ * the control sequence ending the element is consumed by the extension element (it 
+ * becomes part of the CTRL sequence).
+ */
+@StringBased
+export public enum ExtensionEndMarker {
+
+	/**
+	 * None end marker is used for blocks or paragraphs. The end of both
+	 * element types is detected implicitly by the parser via a changed
+	 * indentation level (block) or by empty lines or other elements ending
+	 * a paragraph.
+	 */
+	NONE,
+
+	/**
+	 * Usually for inline elements, ends with an arbitrary sequence of characters
+	 * starting with a control character.
+	 *
+	 * The end of the extension is detected by the lexer.
+	 */
+	CTRL,
+
+	/**
+	 * Usually for line elements, ends with the end of line.
+	 *
+	 * The end of the extension is detected by the lexer.
+	 */
+	EOL,
+
+	/**
+	 * Usually for inline elements, ends with a space (or EOL) character.
+	 *
+	 * The end of the extension is detected by the lexer.
+	 */
+	SPACE
 }
 
 export public interface ~Extension extends ElementProvider {
@@ -62,7 +197,13 @@ export public interface ~Extension extends ElementProvider {
 	 * Returns element type.
 	 */
 	get elementType(): ElementType
-	
+
+	/**
+	 * Returns the end marker type, that is, how the lexer and parser detect the end
+	 * of the extension region.
+	 */
+	get endMarker(): ExtensionEndMarker
+
 	/**
 	 * Control-character(s) which is used to identify whether ctrlMatch is called for further evaluation. 
 	 * If ctrlStart is undefined or empty, the extension can only be referenced by name. The returned
@@ -71,27 +212,29 @@ export public interface ~Extension extends ElementProvider {
 	get ctrlStart(): string
 
 	/**
-	 * Called if ctrlStart is found by lexer. This method is called with current line (starting with ctrlStart).
+	 * Called if ctrlStart or name is found by lexer. This method is called with current line (starting with ctrlStart).
 	 * It returns the length of the match, if any, or 0 otherwise. If multiple extension
 	 * match, the one with the longer match one is chosen. 
 	 */
-	matchCtrlStart(line: string): int
+	matchStart(context: ExtensionContext): int
 
 	/**
-	 * Control-character(s) which is used to identify whether ctrlMatchEnd is called for further evaluation. 
-	 * If ctrlEnd is undefined or empty, the extension can only be referenced by name or doesn't need an end.
-	 * Note that only extensions are queried which have been started (and not yet ended).
+	 * Control-character(s) which is used to identify whether matchEnd is called for further evaluation. 
+	 * If ctrlEnd is undefined or empty, the extension can ends either at space, eol, or via indent.
+	 * The ctrlEnd/matchEnd is called for all extensions, independently of how they started.
+	 * It is also possible that an extension can be ended by alternative methods, e.g.
+	 * eol and ctrl.
+	 *
 	 */
 	get ctrlEnd(): string
 
 	/**
-	 * Called if ctrlEnd is found by lexer. This method is called with current line (starting with ctrlEnd).
+	 * Called if ctrlEnd is found by lexer.
 	 * It returns the length of the match, if any, or 0 otherwise. Only the last started (but not yet ended)
-	 * extension is called. All inline extensions automatically end at end of line.
+	 * extension is called. All inline extensions automatically end at end of a block or paragraph.
 	 */
-	matchCtrlEnd(line: string): int
+	matchEnd(context: ExtensionContext): int
 
-	
 }
 
 /**
@@ -102,42 +245,49 @@ export public abstract class AbstractExtension implements Extension {
 	/** Returns false by default. */
 	@Override
 	public get refByName(): boolean {
-		return false
+		return false;
 	}
 
 	/** Returns undefined by default, i.e., extension cannot be referenced by control sequence. */
 	@Override
 	public get ctrlStart(): string {
-		return undefined
+		return undefined;
 	}
 
 	/** Returns 0 by default. */
 	@Override
-	public matchCtrlStart(line: string): int {
-		return 0
+	public matchStart(context: ExtensionContext): int {
+		return 0;
 	}
 
 	/** Returns undefined by default, i.e., extension has no explicit end character. */
 	@Override
 	public get ctrlEnd(): string {
-		return undefined
+		return undefined;
 	}
 
 	/**
 	 * Returns 0 by default. 
 	 */
 	@Override
-	public matchCtrlEnd(line: string): int {
-		return 0
+	public matchEnd(context: ExtensionContext): int {
+		return 0;
 	}
 
-	
 	/**
-	 * Does nothing by default.
+	 * Trims white spaces at the end of the created element if elementType is different from inline.
 	 */
 	@Override
 	public closeElement(element: Element, context: ExtensionContext) {
-		// nothing by default
+		if (this.elementType == ElementType.INLINE) {
+			return;
+		}
+		element.trim();
+	}
+
+	@Override
+	public get outputProvider(): OutputProvider {
+		return undefined;
 	}
 
 }
@@ -152,62 +302,74 @@ export public class NamedBlockCommand extends AbstractExtension {
 
 	@Override
 	public get refByName(): boolean {
-		return true
+		return true;
 	}
-	
+
 	@Override
 	public get elementType(): ElementType {
-		return ElementType.BLOCK
+		return ElementType.BLOCK;
 	}
-	
+
+	@Override
+	public get endMarker(): ExtensionEndMarker {
+		return ExtensionEndMarker.NONE;
+	}
+
 	/**
 	 * Creates element with name and appends it to the parent element with given indentation.
 	 */
 	@Override
 	public createElement(context: ExtensionContext): Element {
-		return new Block(this.name, context.indentLevel+1, context.currentElement);
+		return new Block(this.name, context.indentLevel + 1, context.currentElement);
 	}
-	
 
 }
 
-
 export public class InlineFormatting extends AbstractExtension {
-	
-	@Final ctrlChar: string;
+
+	@Final
+	ctrlChar: string;
+
 	@Override
-	@Final public name: string;
-	
+	@Final
+	public name: string;
+
 	constructor(ctrlChar: string, name: string) {
 		this.ctrlChar = ctrlChar;
 		this.name = name;
 	}
-	
+
 	@Override
 	public get elementType(): ElementType {
-		return ElementType.INLINE
+		return ElementType.INLINE;
 	}
-	
+
+	@Override
+	public get endMarker(): ExtensionEndMarker {
+		return ExtensionEndMarker.CTRL;
+	}
+
 	@Override
 	public get ctrlStart(): string {
 		return this.ctrlChar;
 	}
+
 	@Override
 	public get ctrlEnd(): string {
 		return this.ctrlChar;
 	}
-	
+
 	@Override
-	public matchCtrlStart(line: string): int {
-		if (line.startsWith(this.ctrlStart)) {
+	public matchStart(context: ExtensionContext): int {
+		if (context.currentLine.startsWith(this.ctrlStart)) {
 			return 1;
 		}
 		return 0;
 	}
 
 	@Override
-	public matchCtrlEnd(line: string): int {
-		return this.matchCtrlStart(line);
+	public matchEnd(context: ExtensionContext): int {
+		return this.matchStart(context);
 	}
 
 	@Override
@@ -216,50 +378,3 @@ export public class InlineFormatting extends AbstractExtension {
 	}
 }
 
-export public class DocumentHandler extends AbstractExtension {
-	@Override
-	public get name(): string {
-		return "p";
-	}
-	@Override
-	public createElement(context: ExtensionContext): Element {
-		return new Document(); 
-	}
-	
-	@Override
-	public get elementType(): ElementType {
-		return ElementType.BLOCK;
-	}
-}
-
-export public class ParagraphHandler extends AbstractExtension {
-	@Override
-	public get name(): string {
-		return "p";
-	}
-	@Override
-	public createElement(context: ExtensionContext): Element {
-		return new Paragraph("p", context.indentLevel, context.currentElement);
-	}
-	
-	@Override
-	public get elementType(): ElementType {
-		return ElementType.PAR
-	}
-}
-
-export public class PreformattedHandler extends AbstractExtension {
-	@Override
-	public get name(): string {
-		return "pre";
-	}
-	@Override
-	public createElement(context: ExtensionContext): Element {
-		return new Paragraph("pre", context.indentLevel, context.currentElement);
-	}
-	
-	@Override
-	public get elementType(): ElementType {
-		return ElementType.PAR
-	}
-}

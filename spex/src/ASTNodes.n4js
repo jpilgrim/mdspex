@@ -3,6 +3,7 @@ export public enum ElementType {
 	BLOCK, INLINE, PAR
 }
 
+
 export public abstract class Node {
 
 	@Final
@@ -32,6 +33,7 @@ export public abstract class Node {
 	}
 
 	public abstract toXML(indent=0): string
+	
 }
 
 const TAB = "    ";
@@ -81,6 +83,7 @@ export public abstract class Element extends Node {
 		}
 		return parts.join("");
 	}
+	
 
 	/**
 	 * Returns the closest block element, either itself or container.
@@ -91,6 +94,20 @@ export public abstract class Element extends Node {
 	}
 	
 	public abstract type(): ElementType
+	
+	public lastChild(): Node {
+		if (this.nodes) {
+			return this.nodes[this.nodes.length-1];
+		}
+		return undefined;
+	}
+	
+	public trim() {
+		let child = this.lastChild();
+		if (child instanceof CDATA) {
+			(child as CDATA).trim();
+		}
+	}
 
 }
 
@@ -132,6 +149,7 @@ export public abstract class CDATAContainer extends Element {
 		}
 		cdata.add(s);
 	}
+	
 
 }
 
@@ -170,7 +188,9 @@ export public class CDATA extends Node {
 		this.content = this.content + s;
 	}
 
-	
+	public trim() {
+		this.content = this.content.trim();	
+	}
 
 }
 

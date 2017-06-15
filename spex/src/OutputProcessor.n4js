@@ -1,0 +1,40 @@
+import {Document} from "ASTNodes";
+import {DefaultOutputProvider} from "DefaultOutputProvider";
+import {OutputContext} from "Extension";
+import {OutputProvider} from "Extension";
+import {HTMLFactory} from "HTMLNodes";
+import {HTMLNode} from "HTMLNodes";
+import {Processor} from "Processor";
+
+export public class OutputProcessor extends Processor {
+	
+	@Inject factory: HTMLFactory
+	@Inject defaultProvider: DefaultOutputProvider
+	
+	public out(document: Document): HTMLNode {
+		let outputProviders = this.processorState.outputProviders;
+		let context = new OutputContext({
+			 parentHTMLNode: null,
+			 currentElement: document,
+			 factory: this.factory,
+			 processorState: this.processorState
+		});
+		return this.processTree(context, outputProviders);
+	}
+	
+	private processTree(context: OutputContext, outputProviders: Map<string, OutputProvider>): HTMLNode {
+		let provider = outputProviders.get(context.currentElement.name) || this.defaultProvider;
+		let htmlNode = provider.process(context);
+		if (htmlNode) {
+			if (context.parentHTMLNode) {
+				context.parentHTMLNode.appendChild(htmlNode);
+			}
+			for (context.currentElement of context.currentElement.nodes) {
+				context.parentHTMLNode = htmlNode;
+				this.processTree(context, outputProviders);
+			}
+		}
+		return htmlNode;
+	}
+}
+

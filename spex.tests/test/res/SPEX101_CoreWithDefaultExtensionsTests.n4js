@@ -9,7 +9,7 @@ export public class SPEX101_CoreWithDefaultExtensionsTests extends ResourceBased
 		return "SPEX101_core";
 	}
 
-	@Parameters("{index}")
+	@Parameters("[{index}] {0}")
     public static getSomeParameters() {
         return coreTests.map(s=>[s]);
     }

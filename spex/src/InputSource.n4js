@@ -88,12 +88,12 @@ export public class InputSource {
 			this._lineOffset++;
 		}
 	}
-
+	
 	/**
 	 * Returns the current line. New line and return line (\n and \r) are omitted, both characters are
 	 * interpreted as "EOL line", meaning they are at the end of the line. 
 	 */
-	public get line(): string {
+	public get currentLine(): string {
 		return this.sequence.substring(this._lineStart, this._lineEnd);
 	}
 

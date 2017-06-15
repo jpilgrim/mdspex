@@ -1,0 +1,20 @@
+####### Seven
+
+#letter
+
+#. other
+
+\# escape
+
+#\# escape
+
+    # pre
+_______________________________________
+<spex>
+<p>####### Seven</p>
+<p>#letter</p>
+<p>#. other</p>
+<p># escape</p>
+<p>## escape</p>
+<precode># pre</precode>
+</spex>

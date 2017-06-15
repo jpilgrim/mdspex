@@ -1,0 +1,28 @@
+import {AbstractOutputProvider} from "Extension";
+import {OutputContext} from "Extension";
+import {HTMLElement} from "HTMLNodes";
+
+export public class DefaultOutputProvider extends AbstractOutputProvider {
+	/**
+	 * Default provider returns empty array, matches all.
+	 */
+	@Override
+	public get names(): [string] {
+		return [];
+	}
+	
+	@Override
+	public process(context: OutputContext): HTMLElement {
+		let name = context.currentElement.name;
+		if (name.startsWith("_")) {
+			return undefined;
+		}
+		let div = context.factory.createElement("div");
+		let attrClass = context.factory.createAttr("class", name);
+		div.setAttributeNode(attrClass);
+		super.copyAttributes(div, context);
+		return div;
+	}
+}
+
+

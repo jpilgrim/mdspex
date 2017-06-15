@@ -70,16 +70,16 @@ export public class InputSourceTest {
 	testLine() {
 		let is = new InputSource("2lines", "abc\ndef\n");
 		Assert.equal(is.nextChar(), "a");
-		Assert.equal(is.line, "abc", "abc");
+		Assert.equal(is.currentLine, "abc", "abc");
 		
 		Assert.equal(is.nextChar(), "b");
-		Assert.equal(is.line, "abc");
+		Assert.equal(is.currentLine, "abc");
 		
 		Assert.equal(is.nextChar(), "c");
-		Assert.equal(is.line, "abc");
+		Assert.equal(is.currentLine, "abc");
 		
 		Assert.equal(is.nextChar(), "\n");
-		Assert.equal(is.line, "abc");
+		Assert.equal(is.currentLine, "abc");
 	}
 	
 

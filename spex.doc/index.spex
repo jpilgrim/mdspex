@@ -385,7 +385,7 @@ REQ SPEX-601: ATX Headings
 	TASK:#6
 
 	EBNF: ATX-Heading Extension
-		headingATX := ^ level=#'#' space title
+		headingATX := ^ level=#'#' space title EOL
 
 
 ## Lists

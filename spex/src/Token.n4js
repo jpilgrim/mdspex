@@ -1,7 +1,7 @@
+import {Element} from "ASTNodes";
 import {Category} from "Category";
 import {shortCategory} from "Category";
-import {Element} from "Nodes";
-import {ActiveExtension} from "InputProcessor";
+import {ActiveExtension} from "ProcessorState";
 
 
 

@@ -1,20 +1,20 @@
+import {Block} from "ASTNodes";
+import {CDATAContainer} from "ASTNodes";
+import {Document} from "ASTNodes";
+import {ElementType} from "ASTNodes";
 import {Category} from "Category";
-import {DocumentHandler} from "Extension";
+import {DocumentHandler} from "DefaultExtensions";
+import {ParagraphHandler} from "DefaultExtensions";
+import {PreformattedHandler} from "DefaultExtensions";
 import {Extension} from "Extension";
-import {ExtensionContext} from "Extension";
-import {ParagraphHandler} from "Extension";
-import {PreformattedHandler} from "Extension";
-import {ActiveExtension} from "InputProcessor";
-import {InputProcessor} from "InputProcessor";
+import {ExtensionEndMarker} from "Extension";
 import {InputSource} from "InputSource";
 import {Lexer} from "Lexer";
-import {Block} from "Nodes";
-import {CDATAContainer} from "Nodes";
-import {Document} from "Nodes";
+import {Processor} from "Processor";
+import {ActiveExtension} from "ProcessorState";
+import {ProcessorState} from "ProcessorState";
 import {Token} from "Token";
-import {ElementType} from "Nodes";
 import {N4Injector} from "n4js/lang/N4Injector";
-import {ProcessorState} from "InputProcessor";
 
 function last(s: string): string {
 	if (s) {
@@ -25,44 +25,42 @@ function last(s: string): string {
 
 function <T>peek(array: [T]): T {
 	if (array) {
-		return array[array.length-1];
+		return array[array.length - 1];
 	}
 	return undefined;
 }
 
-export public class Parser extends InputProcessor {
+export public class Parser extends Processor {
 
 	@Inject
 	lexer: Lexer;
-	
-	@Inject 
-	paragraphHandler: ParagraphHandler
-	@Inject 
-	preformattedHandler: PreformattedHandler
-	@Inject 
-	documentHandler: DocumentHandler
-	
+
+	@Inject
+	paragraphHandler: ParagraphHandler;
+
+	@Inject
+	preformattedHandler: PreformattedHandler;
+
+	@Inject
+	documentHandler: DocumentHandler;
 	eolCount: int = 0;
-	indentLevel: int = 0;
-
-	@Inject injector: N4Injector
 	
+	@Inject
+	injector: N4Injector;
 	// workaround because @PerInjectionSingleton not implemented!
-	resetState() {
-		this.processorState = this.injector.create(ProcessorState);
-		this.lexer.processorState = this.processorState; 		
-	}
-
-	parse(...inputSources: InputSource): Document {
-		this.lexer.addInputSource(inputSources);
-		this.resetState();
+	
 		
+	parse(inputSource: InputSource): Document {
+		this.init(this.injector.create(ProcessorState));
+		this.lexer.init(this.processorState);
+		this.processorState.setInputSource(inputSource);
+
 		let tokenEntry: IteratorEntry<Token>;
 		this.createElement(this.documentHandler);
 		let document = this.processorState.activeExtension.element as Document;
-		
+
 		// Init parser
-		this.indentLevel = 0;
+		this.processorState.indentLevel = 0;
 		this.eolCount = 0;
 
 		// Do parse
@@ -70,101 +68,130 @@ export public class Parser extends InputProcessor {
 			let token = tokenEntry.value;
 			
 			switch (token.category) {
-			case Category.EOL:
-				this.eolCount++;
-				if (this.eolCount == 2) { // new paragraph
-					this.popToBlock();
-				}
-				this.indentLevel = 0;
-				break;
-			case Category.INDENT:
-				this.indentLevel++;
-				this.eolCount = 0;
-				break;
-			case Category.CMD:
-			case Category.CTRL: 
-				let activeExt = token.activeExtension;
-				if (activeExt.element) { // close this element
-					this.closeElement();
-				} else { // create new element
-					if (activeExt.extension.elementType!=ElementType.INLINE) {
+				case Category.EOL:
+					this.closeWordElement();
+					this.closeLineElement();
+
+					this.eolCount++;
+					if (this.eolCount == 2) { // new paragraph
 						this.popToBlock();
-					} else {
-						this.ensureCDATAContainer();
 					}
-					activeExt.element = activeExt.extension.createElement(this.createExtensionContext());
-					this.processorState.activeExtensions.push(activeExt);
-				}
-				this.eolCount = 0;
-				break;
-			default:
-				let cdataContainer = this.ensureCDATAContainer();
-				if (this.eolCount==1 && cdataContainer.element.tailCDATA) {
-					cdataContainer.element.addCDATA(" ");	
-				}
-				cdataContainer.element.addCDATA(token.rawValue);
-				this.eolCount = 0;
+					this.processorState.indentLevel = 0;
+					break;
+				case Category.INDENT:
+					this.processorState.indentLevel++;
+					this.eolCount = 0;
+					break;
+				case Category.CMD: case Category.CTRL:
+					let activeExt = token.activeExtension;
+					if (activeExt.element) { // close this element
+						this.closeElement();
+					} else { // create new element
+						if (activeExt.extension.elementType != ElementType.INLINE) {
+							this.popToBlock();
+						} else {
+							this.ensureCDATAContainer();
+						}
+						activeExt.element = activeExt.extension.createElement(this.processorState.createExtensionContext());
+						this.processorState.activeExtensions.push(activeExt);
+					}
+					this.eolCount = 0;
+					break;
+				case Category.SPACE:
+					this.closeWordElement();
+				// and continue:	
+				default:
+					let cdataContainer = this.ensureCDATAContainer();
+					if (this.eolCount == 1 && cdataContainer.element.tailCDATA) {
+						cdataContainer.element.addCDATA(" ");
+					}
+					cdataContainer.element.addCDATA(token.rawValue);
+					this.eolCount = 0;
 			}
 		}
 
 		return document;
 	}
+
+	closeLineElement() {
+		let nested = 0;
+		for (let i = this.processorState.activeExtensions.length - 1; i >= 0; i--) {
+			let ext = this.processorState.activeExtensions[i];
+			switch (ext.extension.elementType) {
+				case ElementType.BLOCK: return;
+			}
+			nested++;
+			if (ext.extension.endMarker == ExtensionEndMarker.EOL) {
+				break;
+			}
+		}
+		for (let i=0; i<nested; i++) {
+			this.closeElement();
+		}
+	}
 	
+	closeWordElement() {
+		let nested = 0;
+		for (let i = this.processorState.activeExtensions.length - 1; i >= 0; i--) {
+			let ext = this.processorState.activeExtensions[i];
+			switch (ext.extension.elementType) {
+				case ElementType.PAR:
+				case ElementType.BLOCK: return;
+			}
+			nested++;
+			if (ext.extension.endMarker == ExtensionEndMarker.SPACE) {
+				break;
+			}
+		}
+		for (let i=0; i<nested; i++) {
+			this.closeElement();
+		}
+	}
+
 	popToBlock(): ActiveExtension<Block> {
 		while (this.processorState.activeExtensions) {
 			let activeExt = peek(this.processorState.activeExtensions);
-			if (activeExt.element instanceof Block && activeExt.element.indentLevel <= this.indentLevel) {
-				this.indentLevel = activeExt.element.indentLevel; // TODO ?
-				return activeExt as ActiveExtension<Block> 
+			if (activeExt.element instanceof Block && activeExt.element.indentLevel <= this.processorState.indentLevel) {
+				this.processorState.indentLevel = activeExt.element.indentLevel; // TODO ?
+				return activeExt as ActiveExtension<Block>;
 			}
-			activeExt.extension.closeElement(activeExt.element, this.createExtensionContext());
+			activeExt.extension.closeElement(activeExt.element, this.processorState.createExtensionContext());
 			this.processorState.activeExtensions.pop();
 		}
-		throw new Error("Document missing")
+		throw new Error("Document missing");
 	}
-	
+
 	createElement(extension: Extension) {
-		let element = extension.createElement(this.createExtensionContext());
-		let activeExt ={
-			extension: extension, element: element
-		}
+		let element = extension.createElement(this.processorState.createExtensionContext());
+		let activeExt = {
+				extension: extension,
+				element: element
+			};
 		this.processorState.activeExtensions.push(activeExt);
 	}
-	
+
 	closeElement() {
 		let activeElement = this.processorState.activeExtensions.pop();
-		activeElement.extension.closeElement(activeElement.element, this.createExtensionContext());
+		activeElement.extension.closeElement(activeElement.element, this.processorState.createExtensionContext());
 	}
-	
+
 	ensureCDATAContainer(): ActiveExtension<CDATAContainer> {
 		let activeExt = this.processorState.activeExtension;
-		if (! (activeExt.element instanceof CDATAContainer)) {
-			if (this.indentLevel>activeExt.element.indentLevel) {
+		if (!(activeExt.element instanceof CDATAContainer)) {
+			if (this.processorState.indentLevel > activeExt.element.indentLevel) {
 				this.createElement(this.preformattedHandler);
 			} else {
 				this.createElement(this.paragraphHandler);
 			}
 		}
-		return this.processorState.activeExtension as  ActiveExtension<CDATAContainer>;
-	} 
+		return this.processorState.activeExtension as ActiveExtension<CDATAContainer>;
+	}
 
 	private closeInlineElements() {
 		while (this.processorState.activeInlineExtension) {
-			this.closeElement()
+			this.closeElement();
 		}
 	}
 
-
-	createExtensionContext(): ExtensionContext {
-		
-		let currentElement = this.processorState.activeExtension ? this.processorState.activeExtension.element : undefined;
-		let indentLevel = currentElement ? Math.max(currentElement.indentLevel, this.indentLevel) : this.indentLevel;
-		return new ExtensionContext({
-				indentLevel: indentLevel,
-				currentElement: currentElement,
-				processorState: this.processorState,
-				inputSource: this.lexer.is
-			});
-	}
-
+	
 }

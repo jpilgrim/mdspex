@@ -1,18 +1,47 @@
+import {Element} from "ASTNodes";
+import {ElementType} from "ASTNodes";
 import {CatcodeMap} from "Category";
 import {DefaultExtensions} from "DefaultExtensions";
 import {Extension} from "Extension";
-import {Element} from "Nodes";
-import {ElementType} from "Nodes";
+import {ExtensionContext} from "Extension";
+import {InputSource} from "InputSource";
+import {Token} from "Token";
+import {OutputProvider} from "Extension";
 
 export public interface ~ActiveExtension<T extends Element> {
 	extension: Extension;
 	element?: T;
 }
 
-export public class ProcessorState {
+
+export public interface IProcessorState {
+	get catcodeMap(): CatcodeMap
+
+	activeExtensions: [ActiveExtension<Element>];
+
+	indentLevel: int;
+
+	get inputSource(): InputSource;
+	
+	/**
+	 * Last token returned by lexer. Note that during lexing this is not set.
+	 */
+	get currentToken(): Token;
+
+	
+	get activeExtension(): ActiveExtension<Element>
+
+	get activeInlineExtension(): ActiveExtension<Element>
+	
+	
+}
+
+
+export public class ProcessorState implements IProcessorState {
 
 	@Final
-	catcodeMap = new CatcodeMap();
+	@Override
+	public catcodeMap = new CatcodeMap();
 
 	@Final
 	nameBlockOrParExtensions = new Map<string, Extension>();
@@ -27,7 +56,39 @@ export public class ProcessorState {
 	ctrlInlineExtensions = new Map<string, [Extension]>();
 
 	@Final
-	activeExtensions: [ActiveExtension<Element>] = [];
+	@Override
+	public activeExtensions: [ActiveExtension<Element>] = [];
+	
+	@Final
+	public outputProviders = new Map<string, OutputProvider>();
+
+	@Override
+	public indentLevel: int = 0;
+
+	@Override
+	public inputSource: InputSource;
+	
+	/**
+	 * Last token returned by lexer. Note that during lexing this is not set.
+	 */
+	@Override
+	public currentToken: Token;
+
+	public setInputSource(inputSource: InputSource) {
+		this.inputSource = inputSource;
+	}
+
+	createExtensionContext(): ExtensionContext {
+
+		let currentElement = this.activeExtension ? this.activeExtension.element :
+			undefined;
+		let indentLevel = currentElement ? Math.max(currentElement.indentLevel, this.indentLevel) : this.indentLevel;
+		return new ExtensionContext({
+				indentLevel: indentLevel,
+				currentElement: currentElement,
+				processorState: this
+			});
+	}
 
 	public addExtensions(extensions: [Extension]) {
 		for (let ext of extensions) {
@@ -64,32 +125,34 @@ export public class ProcessorState {
 					extsWithStart.push(ext);
 				}
 			}
+			
+			if (ext.outputProvider) {
+				for (let name of ext.outputProvider.names) {
+					this.outputProviders.set(name, ext.outputProvider);
+				}
+			}
 		}
 	}
-	
-	get activeExtension(): ActiveExtension<Element> {
-		return this.activeExtensions ? this.activeExtensions[this.activeExtensions.length-1] : undefined;
+
+	@Override
+	public get activeExtension(): ActiveExtension<Element> {
+		return this.activeExtensions ? this.activeExtensions[this.activeExtensions.length - 1] : undefined;
 	}
 
-	get activeInlineExtension(): ActiveExtension<Element> {
+	@Override
+	public get activeInlineExtension(): ActiveExtension<Element> {
 		let active = this.activeExtension;
 		if (active && active.extension.elementType != ElementType.INLINE) {
 			return undefined;
 		}
 		return active;
 	}
-	
+
 }
 
 export public class DefaultProcessorState extends ProcessorState {
-	
+
 	constructor() {
 		this.addExtensions(new DefaultExtensions().extensions);
 	}
-}
-
-export public class InputProcessor {
-
-	protected processorState: ProcessorState;
-
 }
