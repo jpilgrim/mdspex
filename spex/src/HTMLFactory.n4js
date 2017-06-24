@@ -1,0 +1,11 @@
+import {Attr as HTMLAttr} from "HTMLNodes";
+import {Element as HTMLElement} from "HTMLNodes";
+import {Text as HTMLText} from "HTMLNodes";
+
+export public interface HTMLFactory {
+	createElement(name: string): HTMLElement
+	createText(): HTMLText	
+	createAttr(name: string, value: string): HTMLAttr
+}
+
+

@@ -1,8 +1,57 @@
 
 export public enum ElementType {
-	BLOCK, INLINE, PAR
+	BLOCK,
+	INLINE,
+	PAR
 }
 
+export public interface ASTSwitch<T> {
+
+	switch(node: Node): T {
+		if (!node) {
+			return undefined;
+		}
+		let caseName = "case" + N4Type.of(node).name;
+		let switcher: Object = this;
+		let fct = switcher[caseName] as Function;
+		if (!fct) {
+			throw new TypeError(typeof this + " does not provide function " + caseName);
+		}
+		return fct.call(this, node) as T;
+	}
+
+	protected caseNode(node: Node): T {
+		return this.defaultCase(node);
+	}
+	protected caseElement(node: Element): T {
+		return this.caseNode(node);
+	}
+	protected caseBlock(node: Block): T {
+		return this.caseElement(node);
+	}
+	protected caseCDATAContainer(node: CDATAContainer): T {
+		return this.caseElement(node);
+	}
+	protected caseInline(node: Inline): T {
+		return this.caseCDATAContainer(node);
+	}
+	protected caseParagraph(node: Paragraph): T {
+		return this.caseCDATAContainer(node);
+	}
+	protected caseCDATA(node: CDATA): T {
+		return this.defaultCase(node);
+	}
+	protected caseAttribute(node: Attribute): T {
+		return this.defaultCase(node);
+	}
+	protected caseDocument(node: Document): T {
+		return this.caseBlock(node);
+	}
+
+	protected defaultCase(node: Node | Attribute): T {
+		return undefined;
+	}
+}
 
 export public abstract class Node {
 
@@ -33,7 +82,7 @@ export public abstract class Node {
 	}
 
 	public abstract toXML(indent=0): string
-	
+
 }
 
 const TAB = "    ";
@@ -66,10 +115,8 @@ export public abstract class Element extends Node {
 			parts.push(">");
 			parts.push(this.nodes.map((c, i) => {
 					if (!(c instanceof CDATA || i > 0)) {
-						if (c instanceof Element)
-							return "\n" + TAB.repeat((c as Element).indentLevel) + c.toXML();
-						else 
-							return "\n" + TAB.repeat(this.indentLevel) + c.toXML();
+						if (c instanceof Element) return "\n" + TAB.repeat((c as Element).indentLevel) + c
+							.toXML(); else return "\n" + TAB.repeat(this.indentLevel) + c.toXML();
 					} else {
 						return c.toXML();
 					}
@@ -83,7 +130,6 @@ export public abstract class Element extends Node {
 		}
 		return parts.join("");
 	}
-	
 
 	/**
 	 * Returns the closest block element, either itself or container.
@@ -92,16 +138,16 @@ export public abstract class Element extends Node {
 		if (this.parent) return this.parent.block;
 		return undefined;
 	}
-	
+
 	public abstract type(): ElementType
-	
+
 	public lastChild(): Node {
 		if (this.nodes) {
-			return this.nodes[this.nodes.length-1];
+			return this.nodes[this.nodes.length - 1];
 		}
 		return undefined;
 	}
-	
+
 	public trim() {
 		let child = this.lastChild();
 		if (child instanceof CDATA) {
@@ -123,10 +169,10 @@ export public class Block extends Element {
 	public get block(): Block {
 		return this;
 	}
-	
+
 	@Override
 	public type(): ElementType {
-		return ElementType.BLOCK
+		return ElementType.BLOCK;
 	}
 }
 
@@ -139,7 +185,7 @@ export public abstract class CDATAContainer extends Element {
 		}
 		return "";
 	}
-	
+
 	public addCDATA(s: string) {
 		let cdata: CDATA;
 		if (this.nodes && this.nodes[this.nodes.length - 1] instanceof CDATA) {
@@ -149,7 +195,6 @@ export public abstract class CDATAContainer extends Element {
 		}
 		cdata.add(s);
 	}
-	
 
 }
 
@@ -158,9 +203,10 @@ export public abstract class CDATAContainer extends Element {
  * but not blocks, paragraphs or lines.
  */
 export public class Inline extends CDATAContainer {
+
 	@Override
 	public type(): ElementType {
-		return ElementType.INLINE
+		return ElementType.INLINE;
 	}
 }
 
@@ -168,14 +214,16 @@ export public class Inline extends CDATAContainer {
  * A paragraph can only contain CDATA or inline elements, but no block elements nor
  * other paragraphs. 
  */
+@Final
 export public class Paragraph extends CDATAContainer {
+
 	@Override
 	public type(): ElementType {
-		return ElementType.PAR
+		return ElementType.PAR;
 	}
 }
 
-
+@Final
 export public class CDATA extends Node {
 	content = "";
 
@@ -189,16 +237,18 @@ export public class CDATA extends Node {
 	}
 
 	public trim() {
-		this.content = this.content.trim();	
+		this.content = this.content.trim();
 	}
 
 }
 
+@Final
 export public class Attribute {
 	name: string;
 	value: string;
 }
 
+@Final
 export public class Document extends Block {
 	indexes: Map<string, [Element]>;
 

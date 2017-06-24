@@ -2,9 +2,9 @@ import {Block} from "ASTNodes";
 import {Element} from "ASTNodes";
 import {ElementType} from "ASTNodes";
 import {Inline} from "ASTNodes";
-import {HTMLElement} from "HTMLNodes";
-import {HTMLFactory} from "HTMLNodes";
-import {HTMLNode} from "HTMLNodes";
+import {HTMLFactory} from "HTMLFactory";
+import {Element as HTMLElement} from "HTMLNodes";
+import {Node as HTMLNode} from "HTMLNodes";
 import {IProcessorState} from "ProcessorState";
 import {CharacterToken} from "Token";
 import {Token} from "Token";
@@ -16,7 +16,7 @@ export public class OutputContext {
 	public currentElement: Element;
 
 	@Final
-	public factory: HTMLFactory ;
+	public factory: HTMLFactory;
 
 	@Final
 	public processorState: IProcessorState;
@@ -116,10 +116,12 @@ export public abstract class AbstractOutputProvider implements OutputProvider {
 	 * Base implementation, copies all attributes which do not start with an underscore.
 	 */
 	protected copyAttributes(element: HTMLElement, context: OutputContext) {
-		for (let a of context.currentElement.attributes) {
-			if (!a.name.startsWith("_")) {
-				let attr = context.factory.createAttr(a.name, a.value);
-				element.setAttributeNode(attr);
+		if (context.currentElement.attributes) {
+			for (let a of context.currentElement.attributes) {
+				if (!a.name.startsWith("_")) {
+					let attr = context.factory.createAttr(a.name, a.value);
+					element.setAttributeNode(attr);
+				}
 			}
 		}
 	}
@@ -131,7 +133,7 @@ export public class IdentityProvider extends AbstractOutputProvider {
 	@Override
 	@Final
 	public names: [string];
-	
+
 	constructor(...names: string) {
 		this.names = names;
 	}

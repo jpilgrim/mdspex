@@ -10,6 +10,9 @@ export public class Processor {
 	 * in order to set state.
 	 */
 	init(processorState: ProcessorState) {
+		if (!processorState) {
+			throw new Error("Cannot clear processor state, create new instance");
+		}
 		this._processorState = processorState;
 	}
 

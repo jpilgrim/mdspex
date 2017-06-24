@@ -1,35 +1,34 @@
-export public interface HTMLFactory {
-	createElement(name: string): HTMLElement
-	createText(): HTMLText	
-	createAttr(name: string, value: string): HTMLAttr
-}
 
 
-export public interface HTMLNamedNodeMap {
+export public interface NamedNodeMap {
 	get length(): int
-	item(index: int): HTMLAttr
+	item(index: int): Attr
 }
 
-export public interface ~HTMLNode {
+export public interface ~Node {
 	get nodeName(): string 
-	get childNodes(): [HTMLNode]
-	appendChild(node: HTMLNode): HTMLNode
+	get childNodes(): [Node]
+	appendChild(node: Node)
 }
 
-export public interface ~HTMLElement extends HTMLNode {
-	setAttributeNode(attr: HTMLAttr)
+export public interface ~Element extends Node {
+	get attributes(): NamedNodeMap
+	setAttributeNode(attr: Attr)
+	
+	get outerHTML(): string
 }
 
-export public interface ~ HTMLAttr extends HTMLNode {
+export public interface ~ Attr extends Node {
 	get name(): string
 	get value(): string
 }
 
-export public interface ~HTMLCharacterData extends HTMLNode {
+export public interface ~CharacterData extends Node {
 	get data(): string
+	appendData(data: string)
 }
 
-export public interface ~HTMLText extends HTMLCharacterData {
+export public interface ~Text extends CharacterData {
 	
 }
 

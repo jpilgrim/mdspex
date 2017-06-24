@@ -1,7 +1,9 @@
 import {Document} from "ASTNodes";
 import {DefaultExtensionBinder} from "DefaultExtensionBinder";
 import {NoExtensionBinder} from "DefaultExtensionBinder";
+import {Element as HTMLElement} from "HTMLNodes";
 import {InputSource} from "InputSource";
+import {OutputProcessor} from "OutputProcessor";
 import {Parser} from "Parser";
 import {readFile} from "fs";
 import {Assert} from "n4/mangel/assert/Assert";
@@ -15,7 +17,12 @@ export public interface ~SourceAndExpectation {
 	expected: string;
 }
 
-export interface IResourceBasedTest {
+export interface IBasicResourceBasedTest {
+	
+	
+    get resSubFolderName(): string { return "parserTests" }
+    
+    get resExtension(): string { return ".spex_xml"}
 	
 	get injector(): N4Injector;
 	get name(): string;
@@ -38,7 +45,7 @@ export interface IResourceBasedTest {
 	}
 
 	get testAbsResPath(): string {
-		return join("spex.tests", "res");
+		return join("spex.tests", "res", this.resSubFolderName);
 	}
 
 	public async loadSourceAndExpectation(testName: string): SourceAndExpectation {
@@ -50,7 +57,7 @@ export interface IResourceBasedTest {
 		if (!resPath) { // TODO res not in node_path when using n4jsc, workaround:
 			resPath = np.split(delimiter).find(s => s.endsWith("spex.tests/src-gen/es"));
 			if (resPath) {
-				resPath = resPath.substring(0, resPath.length-10) + "res";
+				resPath = join(resPath.substring(0, resPath.length-11), "res", this.resSubFolderName);
 			}
 			
 		}
@@ -61,7 +68,7 @@ export interface IResourceBasedTest {
 
 		// console.log("resPath", resPath, "this.testResPath" ,this.testResPath,"TestName", testName)
 
-		let fullPath = join(resPath, this.testResPath, testName + ".spex_xml");
+		let fullPath = join(resPath, this.testResPath, testName + this.resExtension);
 		// console.log(fullPath);
 		let s = await readFile(fullPath, {encoding: 'utf-8'});
 		let [source, expected] = s.split(/\n__________________*\n/);
@@ -73,7 +80,9 @@ export interface IResourceBasedTest {
 		let doc = parser.parse(new InputSource(this.name, src));
 		return doc;
 	}
-	
+}
+
+export interface IResourceBasedTest extends IBasicResourceBasedTest {
 	@Test
 	async test() {
 		// console.log("run test " + this.name)
@@ -97,6 +106,7 @@ export interface IResourceBasedTest {
 	}
 }
 
+
 @GenerateInjector()
 @UseBinder(DefaultExtensionBinder)
 export public abstract class ResourceBasedTest implements IResourceBasedTest {
@@ -108,7 +118,6 @@ export public abstract class ResourceBasedTest implements IResourceBasedTest {
 	@Parameter
     @Override
     public name: string
-    	
 }
 
 @GenerateInjector()
@@ -124,4 +133,59 @@ export public abstract class ResourceBasedCoreTest implements IResourceBasedTest
     public name: string
     
 	
+}
+
+@GenerateInjector()
+@UseBinder(DefaultExtensionBinder)
+export public abstract class ResourceBasedOutputTest implements IBasicResourceBasedTest {
+
+	@Inject
+	@Override
+	injector: N4Injector;
+	
+	@Parameter
+    @Override
+    public name: string
+    
+    
+    @Override
+    get resSubFolderName(): string { return "outputTests" }
+    
+    @Override
+    get resExtension(): string { return ".spex_html"}
+    
+    protected parseAndOutput(src: string): HTMLElement {
+		let parser = this.injector.create(Parser);
+		let outputProcessor = this.injector.create(OutputProcessor);
+
+		let doc = parser.parse(new InputSource(this.name, src));
+		outputProcessor.init(parser.processorState);
+ 
+		let htmlnode = outputProcessor.out(doc);
+		return htmlnode;
+	}
+    
+    @Test
+	async test() {
+		// console.log("run test " + this.name)
+		let sae = await this.loadSourceAndExpectation(this.name);
+		// console.log(sae.source);
+		let root = this.parseAndOutput(sae.source);
+		let actual = root.outerHTML;
+		try {
+			Assert.equal(actual, sae.expected, this.name);
+		} catch (e) {
+			console.log("_____________________________________");
+			console.log("Error test " + this.name);
+			console.log("_____________________________________");
+			console.log(sae.source);
+			console.log("______________\nExpected:");
+			console.log(sae.expected);
+			console.log("______________\nActual:");
+			console.log(actual);
+			console.log("______________\nRoot:");
+			console.log(JSON.stringify(root))
+			throw e;
+		}
+	}
 }

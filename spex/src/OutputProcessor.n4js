@@ -1,40 +1,58 @@
-import {Document} from "ASTNodes";
+import {Element} from "ASTNodes";
 import {DefaultOutputProvider} from "DefaultOutputProvider";
 import {OutputContext} from "Extension";
-import {OutputProvider} from "Extension";
-import {HTMLFactory} from "HTMLNodes";
-import {HTMLNode} from "HTMLNodes";
+import {HTMLFactory} from "HTMLFactory";
+import * as HTML from "HTMLNodes";
 import {Processor} from "Processor";
+import {ASTSwitch} from "ASTNodes";
+import {CDATA} from "ASTNodes";
+import {Document} from "ASTNodes";
 
-export public class OutputProcessor extends Processor {
+
+export public class OutputProcessor extends Processor implements ASTSwitch<HTML.Node> {
 	
 	@Inject factory: HTMLFactory
 	@Inject defaultProvider: DefaultOutputProvider
 	
-	public out(document: Document): HTMLNode {
-		let outputProviders = this.processorState.outputProviders;
-		let context = new OutputContext({
+	private context: OutputContext
+	
+	public out(document: Document): HTML.Element {
+		this.context = new OutputContext({
 			 parentHTMLNode: null,
 			 currentElement: document,
 			 factory: this.factory,
 			 processorState: this.processorState
 		});
-		return this.processTree(context, outputProviders);
+		return this.processTree() as HTML.Element;
 	}
 	
-	private processTree(context: OutputContext, outputProviders: Map<string, OutputProvider>): HTMLNode {
-		let provider = outputProviders.get(context.currentElement.name) || this.defaultProvider;
-		let htmlNode = provider.process(context);
+	private processTree(): HTML.Node {
+		let htmlNode = this.switch(this.context.currentElement); 
 		if (htmlNode) {
-			if (context.parentHTMLNode) {
-				context.parentHTMLNode.appendChild(htmlNode);
+			if (this.context.parentHTMLNode) {
+				this.context.parentHTMLNode.appendChild(htmlNode);
 			}
-			for (context.currentElement of context.currentElement.nodes) {
-				context.parentHTMLNode = htmlNode;
-				this.processTree(context, outputProviders);
+			if ( this.context.currentElement.nodes) {
+				for (this.context.currentElement of this.context.currentElement.nodes) {
+					this.context.parentHTMLNode = htmlNode;
+					this.processTree();
+				}
 			}
 		}
 		return htmlNode;
+	}
+	
+	@Override
+	protected caseElement(node: Element): HTML.Element {
+		let provider = this.processorState.outputProviders.get(node.name) || this.defaultProvider;
+		return provider.process(this.context);
+	}
+	
+	@Override
+	protected caseCDATA(node: CDATA): HTML.Node {
+		let text = this.factory.createText();
+		text.appendData(node.content);
+		return text;
 	}
 }
 

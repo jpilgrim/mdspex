@@ -1,0 +1,64 @@
+import {ArgType} from "CLI";
+import {CLI} from "CLI";
+import {InputSource} from "InputSource";
+import {OutputProcessor} from "OutputProcessor";
+import {Parser} from "Parser";
+import {readFile} from "fs";
+import {N4Injector} from "n4js/lang/N4Injector";
+import {writeFile} from "fs";
+
+
+interface ~SpexArgs {
+	public verbose: boolean;
+	public divOnly: boolean;
+	public inputFile: string;
+	public outputFile: string;
+}
+
+@GenerateInjector
+class SpexCLI {
+	
+	@Inject parser: Parser
+	@Inject outputProcessor: OutputProcessor;
+
+	async main(argv: [string]) {
+		let cli = new CLI();
+		cli.setHelp();
+		cli.opt("verbose", false);
+		cli.opt("divOnly", false, "d", "only the spex div element is emitted");
+		cli.indexed("inputFile", ArgType.STRING, 1, "name of input file");
+		cli.indexed("outputFile", ArgType.STRING, 2, "name of output file, if not specified, output file is named as input with extension 'html'", false);
+
+		let args = cli.parseArgs(process.argv) as SpexArgs;
+		if (!args) {
+			process.exit(1);
+		}
+		
+		let inSrc = await readFile(args.inputFile, {encoding: 'utf-8'});
+		let doc = this.parser.parse(new InputSource(args.inputFile , inSrc));
+		
+		this.outputProcessor.init(this.parser.processorState);
+		let htmlnode = this.outputProcessor.out(doc);
+		
+		let strDiv = htmlnode.outerHTML;
+		let strFull;
+		if (args.divOnly) {
+			strFull = strDiv;
+		} else {
+			strFull = 
+				"<html><body>" + strFull + "</body></html>";
+		}
+		
+		if (! args.outputFile) {
+			let lastDot = args.inputFile.lastIndexOf(".");
+			if (lastDot<0) lastDot = args.inputFile.length; 
+			args.outputFile = args.inputFile.substring(0, lastDot-1) + ".html";
+		}
+		
+		await writeFile(args.outputFile, strFull, {encoding: 'utf-8'});
+	}
+
+}
+
+var spexCLI = N4Injector.of(SpexCLI).create(SpexCLI);
+spexCLI.main(process.argv);

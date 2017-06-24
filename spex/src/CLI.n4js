@@ -1,0 +1,489 @@
+/**
+ * Type of command line argument, flag is a boolean and can only be set to true (will ba false by default)
+ */
+export public enum ArgType {
+	STRING,
+	NUMBER,
+	FLAG
+}
+
+/**
+ * Internal interface for CLI parser, only exported for testing purposes.
+ */
+export interface ArgDef {
+	public abstract get short(): string
+	public abstract get index(): int
+	public name: string;
+	public help: string = undefined;
+	public min = 0;
+	public max = 1;
+	public argType = ArgType.STRING;
+	public value: string | number | boolean | [string] | [number] | [boolean] = undefined;
+
+	get isVarArg(): boolean {
+		return false;
+	}
+
+	get isIndex(): boolean {
+		return false;
+	}
+
+	get byName(): boolean {
+		return false;
+	}
+
+}
+
+/**
+ * Command line argument identified by name ("--name") or short ("-short").
+ */
+class NamedArgDef implements ArgDef {
+
+	@Override
+	public short?: string;
+
+	constructor(@Spec spec: ~i~this) {}
+
+	@Override
+	public get index(): int {
+		return undefined;
+	}
+
+	@Override
+	get byName(): boolean {
+		return true;
+	}
+}
+
+/**
+ * Command line argument identified by index. Last one may be variadic.
+ */
+export class IndexArgDef implements ArgDef {
+
+	@Override
+	public index?: int;
+
+	constructor(@Spec spec: ~i~this) {}
+
+	@Override
+	public get short(): string {
+		return undefined;
+	}
+
+	@Override
+	get isVarArg(): boolean {
+		return this.max == -1;
+	}
+
+	@Override
+	get isIndex(): boolean {
+		return true;
+	}
+
+}
+
+/**
+ * Command line interface parser. Has to be configured via opt, req, indexed, and varargs. Then
+ * given arguments can be parsed via parse, returning an object literal with properties matching
+ * the names of the arguments and the values. The values are either the default values or the
+ * parsed ones.
+ *
+ * EXAMPLE:
+ * 	The following snippet show how the CLI can be used, also see tests for more examples.
+ * 		let cli = new CLI();
+ * 		cli.setHelp();
+ * 		cli.opt("verbose", false);
+ * 		cli.req("depth", ArgType.NUMBER);
+ * 		cli.indexed("input", ArgType.STRING, 1);
+ * 		cli.indexed("output", ArgType.STRING, 2);
+ * 		cli.varargs("defs", ArgType.STRING, 3);
+ * 		let obj = cli.parseArgs(process.argv);
+ */
+export public class CLI {
+
+	helpArgDef: ArgDef;
+	argDefs: [ArgDef] = [];
+
+	/**
+	 * Sets help argument to print out help.
+	 */
+	public setHelp(name="help", short="h", help="print out help") {
+		this.opt(name, false, short, help);
+		this.helpArgDef = this.argDefs[this.argDefs.length - 1];
+	}
+
+	/**
+	 * Defines a variadic argument. This has to be the last argument identified by index,
+	 * the type in the object literal will be an array of types specified in argType. Boolean
+	 * arrays are not possible here.
+	 */
+	public varargs(name: string, argType: ArgType, index: int, help: string=) {
+		if (argType == ArgType.FLAG) {
+			throw new Error("Variadic flags make no sense");
+		}
+		this.add(new IndexArgDef({
+				name: name,
+				index: index,
+				help: help,
+				min: 0,
+				max: -1,
+				argType: argType
+			}));
+	}
+
+	/**
+	 * Defines an argument identified by location (index) in argument list. The index has to start with
+	 * 1, succeeding indexed arguments have to increment the index.
+	 * The type cannot be a flag.
+	 * If the indexed argument is not required, all following indexed arguments must be
+	 * either optional as well or variadic. 
+	 */
+	public indexed(name: string, argType: ArgType, index: int, help: string=, required=false) {
+		if (argType == ArgType.FLAG) {
+			throw new Error("Use required argument by name for flag");
+		}
+		this.add(new IndexArgDef({
+				name: name,
+				index: index,
+				help: help,
+				min: required ? 1: 0,
+				max: 1,
+				argType: argType
+			}));
+	}
+
+	/**
+	 * Defines a required argument which is identified by its name (long version is "--name") or
+	 * optionally by a short version ("-short"). It is possible to define arrays (max>1),
+	 * in that case the name and value have to be defined several times.   
+	 */
+	public req(name: string, argType: ArgType, short: string=, help: string=, max=1) {
+		this.add(new NamedArgDef({
+				name: name,
+				short: short,
+				help: help,
+				min: 1,
+				max: max,
+				argType: argType
+			}));
+	}
+
+	/**
+	 * Defines an optional argument identified by name. Optional arguments require a default value
+	 * which is also used to infer the type of the argument and its cardinality.
+	 */
+	public opt(name: string, value: string | number | boolean | [string] | [number] | [boolean],
+		short: string=,
+		help: string = undefined) {
+
+		let {argType, max} = CLI.argTypeByValue(value);
+		this.add(new NamedArgDef({
+				name: name,
+				short: short,
+				help: help,
+				min: 0,
+				max: max,
+				argType: argType,
+				value: value
+			}));
+	}
+
+	/**
+	 * Internal helper inferring the type and cardinality of a argument by its default value.
+	 */
+	static argTypeByValue(value: string | number | boolean | [string] | [number] | [boolean]): ~Object with
+		{argType: ArgType, max: int} {
+		let argType: ArgType;
+		let max = 1;
+		switch (typeof value) {
+			case "string":
+				argType = ArgType.STRING;
+				break;
+			case "number":
+				argType = ArgType.NUMBER;
+				break;
+			case "boolean":
+				argType = ArgType.FLAG;
+				break;
+			case "object":
+				max = -1;
+				argType = CLI.argTypeByValue((value as [string | number | boolean])[0]).argType;
+		}
+		if (!argType) {
+			throw new Error("Cannot retrieve argtype from " + value);
+		}
+		return {argType: argType, max: max};
+	}
+
+	private add(argDef: ArgDef) {
+		if (this.argDefs.find(a => a.name == argDef.name)) {
+			throw new Error("Duplicate definition of " + argDef.name);
+		}
+		if (argDef.isVarArg && this.argDefs.find(a => a.isVarArg)) {
+			throw new Error("Only one vararg is allowed");
+		}
+		if (argDef.isIndex) {
+			let index = argDef.index;
+			if (index > 1) {
+				if (!this.argDefs.find(a => a.isIndex && a.index == index - 1)) {
+					throw new Error("Gap in index arguments, " + (index - 1) + " not found");
+				}
+			}
+		}
+		this.argDefs.push(argDef);
+	}
+
+	/**
+	 * Parses a given array of arguments (argv) starting at a given offset. The offset is 2 by default
+	 * matching the offset required to parse nodes "process.argv" object.
+	 *
+	 * If an error is detected, the help is printed out and undefined is returned.
+	 * If no error occurred, the returned object is an object literal containing fields for each
+	 * defined argument with a valid (or default) value.
+	 */
+	public parseArgs(argv: [string], offset = 2): Object {
+		let index = 0;
+		let i = offset; // first: node; second: script
+
+		let foundArgDefs = new Set<ArgDef>();
+
+		let obj = this.populate();
+
+		let argDef: ArgDef;
+		while (i < argv.length) {
+			let arg = argv[i];
+			let value: string;
+			if (arg.startsWith("-") && index == 0) {
+				if (arg.startsWith("--")) {
+					let name = arg.substring(2);
+					argDef = this.argDefs.find(ad => ad.name == name && ad.byName);
+				} else {
+					let short = arg.substring(1);
+					argDef = this.argDefs.find(ad => ad.short == short);
+				}
+				if (argDef == this.helpArgDef) {
+					return this.printHelp();
+				}
+			} else {
+				if (!argDef) {
+					index++;
+					argDef = this.argDefs.find(ad => ad.index == index);
+				}
+			}
+			if (!argDef) {
+				return this.printHelp("unknown option " + arg);
+			}
+
+			if (argDef.argType != ArgType.FLAG) {
+				if (argDef.byName) {
+					i++;
+					if (i == argv.length) {
+						return this.printHelp(argDef.name + " requires a value");
+					}
+				}
+				value = argv[i];
+			} else {
+				value = "true";
+			}
+			let typedValue: any = value;
+			switch (argDef.argType) {
+				case ArgType.NUMBER:
+					typedValue = parseFloat(value);
+					break;
+				case ArgType.FLAG: typedValue = value == "true";
+			}
+
+			if (argDef.max != 1) {
+				(obj[argDef.name] as Array<any>).push(typedValue);
+			} else {
+				if (foundArgDefs.has(argDef)) {
+					return this.printHelp(argDef.name + " defined multiple times.");
+				}
+				obj[argDef.name] = typedValue;
+			}
+			foundArgDefs.add(argDef);
+			if (!argDef.isVarArg) {
+				argDef = undefined;
+			}
+			i++;
+		}
+
+		for (let ad of this.argDefs) {
+			if (ad.min == 1 && !foundArgDefs.has(ad)) {
+				return this.printHelp(ad.name + " must be specified");
+			}
+		}
+		return obj;
+	}
+
+	/**
+	 * Internal helper, populates the returned object literal in parse with default values. 
+	 */
+	private populate(): Object {
+		let obj: Object = {};
+		for (let ad of this.argDefs) {
+			if (ad != this.helpArgDef) {
+				if (ad.max == 1) {
+					obj[ad.name] = ad.value;
+				} else {
+					if (ad.value) {
+						if (typeof ad.value == "object") {
+							obj[ad.name] = ad.value;
+						} else {
+							obj[ad.name] = [ ad.value];
+						}
+					} else {
+						obj[ad.name] = [];
+					}
+				}
+			}
+		}
+		return obj;
+	}
+
+	/**
+	 * Prints the help (usage) with an optional preceding error message.
+	 *
+	 * EXAMPLE:
+	 * 	The following output shows the help with error matching the example
+	 * 	given in the class description.
+	 * 		Error: unknown option --typo
+	 * 		Usage:  [options] --depth num input output [defs...]
+	 * 		  input                 sets input
+	 * 		  output                sets output
+	 * 		  defs                  sets defs
+	 * 		Required:
+	 * 		  --depth num           sets depth
+	 * 		Options:
+	 * 		  -h, --help            print out help
+	 * 		  --verbose             sets verbose
+	 */
+	printHelp(error: string=): Object {
+		console.log(this.help(error));
+		return undefined;
+	}
+
+	/**
+	 * Creates a string with the help output.
+	 */
+	help(error: string = undefined): string {
+		let options: [string] = [];
+		let required: [string] = [];
+		let requiredUsage: [string] = [];
+		let indexed: [string] = [];
+		let indexedUsage: [string] = [];
+		let varargsUsage: string;
+		let varargs: string;
+		for (let argDef of this.argDefs) {
+			let s = CLI.argDefHelp(argDef);
+			if (argDef.byName) {
+				if (argDef.min == 0) options.push(s); else {
+					required.push(s);
+					requiredUsage.push(CLI.argDefUsage(argDef));
+				}
+			} else {
+				if (argDef.isVarArg == -1) {
+					varargsUsage = argDef.name;
+					varargs = s;
+				} else {
+					indexed.push(s);
+					indexedUsage.push(CLI.argDefUsage(argDef));
+				}
+			}
+		}
+		let out: [string] = [];
+
+		if (error) {
+			out.push("Error: " + error);
+		}
+
+		let usage: [string] = [ "Usage: " ];
+		if (options.length > 0) usage.push("[options]");
+		if (requiredUsage.length > 0) usage = usage.concat(requiredUsage);
+		if (indexedUsage.length > 0) usage = usage.concat(indexedUsage);
+		if (varargsUsage) {
+			usage.push("[" + varargsUsage + "]");
+		}
+		out.push(usage.join(" "));
+		if (indexed.length > 0) {
+			out = out.concat(indexed);
+		}
+		if (varargs) {
+			out.push(varargsUsage[0].toUpperCase() + varargsUsage.substring(1) + ":");
+			out = out.concat(varargs);
+		}
+		if (required.length > 0) {
+			out.push("Required:");
+			out = out.concat(required);
+		}
+		if (options.length > 0) {
+			out.push("Options:");
+			out = out.concat(options);
+		}
+		return out.join("\n");
+	}
+
+	private static argDefUsage(argDef: ArgDef): string {
+		let line = "";
+		if (argDef.byName) {
+			if (argDef.short) line += "-" + argDef.short + " | ";
+			line += "--" + argDef.name;
+		}
+		if (argDef.byName) {
+			switch (argDef.argType) {
+				case ArgType.STRING:
+					line += " val";
+					break;
+				case ArgType.NUMBER:
+					line += " num";
+					break;
+			}
+		} else {
+			if (argDef.min == 1) line += argDef.name; else if (argDef.isVarArg) {
+				line += "[" + argDef.name + "...]";
+			} else {
+				line += "[" + argDef.name + "]";
+			}
+
+		}
+		return line;
+	}
+
+	private static argDefHelp(argDef: ArgDef): string {
+		let line = "  ";
+		if (argDef.byName) {
+			if (argDef.short) line += "-" + argDef.short + ", ";
+			line += "--" + argDef.name;
+		}
+		if (argDef.byName) {
+			switch (argDef.argType) {
+				case ArgType.STRING:
+					line += " val";
+					break;
+				case ArgType.NUMBER:
+					line += " num";
+					break;
+			}
+		} else {
+			line += argDef.name;
+		}
+		if (line.length > 0 && line.length < 24) {
+			line += " ".repeat(24 - line.length);
+		}
+		if (argDef.help) {
+			line += argDef.help;
+		} else {
+			line += "sets " + argDef.name;
+			if (argDef.value) {
+				line += ", default ";
+				if (typeof argDef.value == "string") {
+					line += '"' + argDef.value + '"';
+				} else {
+					line += argDef.value;
+				}
+			}
+		}
+		return line;
+	};
+
+}

@@ -1,6 +1,6 @@
 import {AbstractOutputProvider} from "Extension";
 import {OutputContext} from "Extension";
-import {HTMLElement} from "HTMLNodes";
+import {Element as HTMLElement} from "HTMLNodes";
 
 export public class DefaultOutputProvider extends AbstractOutputProvider {
 	/**
@@ -14,7 +14,7 @@ export public class DefaultOutputProvider extends AbstractOutputProvider {
 	@Override
 	public process(context: OutputContext): HTMLElement {
 		let name = context.currentElement.name;
-		if (name.startsWith("_")) {
+		if (!name || name.startsWith("_")) {
 			return undefined;
 		}
 		let div = context.factory.createElement("div");

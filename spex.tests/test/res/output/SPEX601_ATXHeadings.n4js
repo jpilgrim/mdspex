@@ -1,0 +1,17 @@
+import {ResourceBasedOutputTest} from "ResourceBasedTest";
+
+
+export public class SPEX601_ATXHeadings extends ResourceBasedOutputTest {
+	
+	
+
+	@Parameters("[{index}] {0}")
+    public static getSomeParameters() {
+        return [
+        	"headingsMixed_1"
+        ].map(s=>[s]);
+    }
+    
+    
+	
+}

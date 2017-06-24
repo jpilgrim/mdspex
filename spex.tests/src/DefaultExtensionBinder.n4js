@@ -1,12 +1,16 @@
 import {DefaultProcessorState} from "ProcessorState";
 import {ProcessorState} from "ProcessorState";
+import {HTMLFactory} from "HTMLFactory";
+import {VFactory} from "VNodes";
 
 @Binder
 @Bind(ProcessorState, ProcessorState)
+@Bind(HTMLFactory, VFactory)
 export public class NoExtensionBinder {}
 
 
 @Binder
 @Bind(ProcessorState, DefaultProcessorState)
+@Bind(HTMLFactory, VFactory)
 export public class DefaultExtensionBinder {}
 

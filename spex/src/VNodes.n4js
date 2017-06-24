@@ -1,0 +1,135 @@
+import {HTMLFactory} from "HTMLFactory";
+import * as HTML from "HTMLNodes";
+
+export public class VFactory implements HTMLFactory {
+	@Override
+	public createElement(name: string): HTML.Element {
+		return new Element(name);
+	}
+	@Override
+	public createText(): HTML.Text {
+		return new Text();
+	}	
+	@Override
+	public createAttr(name: string, value: string): HTML.Attr {
+		return new Attr(name, value);
+	}
+}
+
+
+export public class NamedNodeMap implements  HTML.NamedNodeMap {
+	@Final private _attributesByName = new Map<string, int>;
+	@Final _attributes:  [HTML.Attr] = [];
+	
+	@Override
+	public get length(): int {
+		return this._attributes.length;
+	}
+	
+	@Override
+	public item(index: int): HTML.Attr{
+		return this._attributes[index];
+	}
+	
+	
+}
+
+export public class Node implements HTML.Node {
+	
+	@Final @Override
+	public nodeName: string;
+	@Final @Override
+	public childNodes: [HTML.Node];
+	
+	constructor(nodeName: string) {
+		this.nodeName = nodeName;
+		this.childNodes = [];
+	}
+	
+	@Override
+	public appendChild(node: HTML.Node) {
+		this.childNodes.push(node);
+	}
+}
+
+export public class Element extends Node implements HTML.Element {
+	@Override
+	@Final public attributes: NamedNodeMap;
+	
+	constructor(nodeName: string) {
+		super(nodeName)
+		this.attributes = new NamedNodeMap();
+	}
+	
+	@Override
+	public setAttributeNode(attr: HTML.Attr) {
+		let index = this.attributes._attributesByName.get(attr.name);
+		if (index!=undefined) {
+			this.attributes._attributes[index] = attr;	
+		} else {
+			this.attributes._attributes.push(attr);
+			this.attributes._attributesByName.set(attr.name, this.attributes._attributes.length-1)
+		}
+	}
+	
+	@Override
+	public get outerHTML(): string {
+		let s = "<" + this.nodeName;
+		if (this.attributes && this.attributes.length>0) {
+			s += " " + this.attributes._attributes.map(attr=>attr.name+'"'+attr.value+'"').join(" ");
+		}
+		if (this.childNodes) {
+			s += ">";
+			for (let child: HTML.Node+ of this.childNodes) {
+				let inner = child.outerHTML || child.data;
+				if (inner) {
+					s += inner;
+				}
+			}
+			s += "</" + this.nodeName + ">";
+		} else {
+			s += "/>";
+		}
+			
+		
+		
+		return s;
+	}
+}
+
+export public class Attr extends Node implements HTML.Attr  {
+	
+	@Override
+	public value: string;
+	
+	constructor(name: string, value: string) {
+		super(name);
+		this.value = value;
+	}
+	
+	@Override
+	public get name(): string {
+		return this.nodeName;
+	}
+	
+}
+
+export public abstract class CharacterData extends Node implements HTML.CharacterData {
+	@Override
+	public data: string = "";
+	
+	@Override
+	public appendData(data: string): string {
+		this.data += data;
+		return this.data;
+	}
+	
+	
+}
+
+export public class Text extends CharacterData implements HTML.Text {
+	constructor() {
+		super("CDATA")
+	}
+}
+

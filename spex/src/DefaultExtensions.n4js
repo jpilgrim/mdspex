@@ -12,7 +12,7 @@ import {InlineFormatting} from "Extension";
 import {NamedBlockCommand} from "Extension";
 import {OutputContext} from "Extension";
 import {OutputProvider} from "Extension";
-import {HTMLElement} from "HTMLNodes";
+import {Element as HTMLElement} from "HTMLNodes";
 import {ATXHeading} from "extensions/ATXHeadings";
 
 export public class DefaultExtensions {

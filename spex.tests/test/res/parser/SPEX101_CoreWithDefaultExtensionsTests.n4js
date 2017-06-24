@@ -1,5 +1,5 @@
 import {ResourceBasedTest} from "ResourceBasedTest";
-import {coreTests} from "res/SPEX101_CoreNoExtensionsTests";
+import {coreTests} from "res/parser/SPEX101_CoreNoExtensionsTests";
 
 
 export public class SPEX101_CoreWithDefaultExtensionsTests extends ResourceBasedTest {

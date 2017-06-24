@@ -52,6 +52,10 @@ export public class Parser extends Processor {
 		
 	parse(inputSource: InputSource): Document {
 		this.init(this.injector.create(ProcessorState));
+		
+		this.processorState.outputProviders.set(this.paragraphHandler.name, this.paragraphHandler.outputProvider);
+		this.processorState.outputProviders.set(this.preformattedHandler.name, this.preformattedHandler.outputProvider);
+		
 		this.lexer.init(this.processorState);
 		this.processorState.setInputSource(inputSource);
 
