@@ -1,0 +1,20 @@
+import {ResourceBasedTest} from "org/mdspex/ResourceBasedTest";
+
+
+export public class SPEX601_ATXHeadings extends ResourceBasedTest {
+
+	@Parameters("[{index}] {0}")
+    public static getSomeParameters() {
+        return ["levelsSeparatedByEmptyLine",
+        	"levelsSeparatedByEOL",
+        	"headingsWithContentSeparatedByEmptylines",
+        	"headingsWithContentSeparatedByEOL",
+        	"noHeadings",
+        	"headingsMixed_1",
+        	"hashAtEnd"
+        ].map(s=>[s]);
+    }
+    
+    
+	
+}

@@ -1,0 +1,87 @@
+import {Assert} from "n4/mangel/assert/Assert";
+import {InputSource} from "org/mdspex/InputSource";
+
+export public class InputSourceTest {
+		
+
+	@Test
+	testEmptyInitValues() {
+		let is = new InputSource("empty", "");
+		Assert.isFalse(is.hasNext());
+		Assert.isFalse(is.hasNext(1));
+		Assert.equal(is.lineNumber, 0);
+		Assert.equal(is.lineOffset, 0);
+	}
+
+	@Test
+	testEmptyNextChar() {
+		let is = new InputSource("empty", "");
+		Assert.throws(()=>is.nextChar());
+	}
+
+	@Test
+	testEmptyPeek() {
+		let is = new InputSource("empty", "");
+		Assert.equal(is.peek(), "");
+		Assert.equal(is.peek(1), "");
+	}
+	
+	@Test
+	testTwoLines() {
+		let is = new InputSource("2lines", "a\nb\n");
+		Assert.isTrue(is.hasNext());
+		Assert.equal(is.lineNumber, 0, "First line at the very beginning");
+		
+		Assert.equal(is.nextChar(), "a");
+		Assert.equal(is.lineNumber, 0, "First line");
+		
+		Assert.isTrue(is.hasNext());
+		Assert.equal(is.nextChar(), "\n");
+		Assert.equal(is.lineNumber, 0, "nl must be part of line");
+		
+		Assert.isTrue(is.hasNext());
+		Assert.equal(is.nextChar(), "b");
+		Assert.equal(is.lineNumber, 1);
+		Assert.isTrue(is.hasNext());
+		
+		Assert.equal(is.nextChar(), "\n");
+		Assert.equal(is.lineNumber, 1, "nl must be part of line");
+		Assert.isFalse(is.hasNext());
+		Assert.throws(()=>is.nextChar());
+	}
+	
+	@Test
+	testRestOfLine() {
+		let is = new InputSource("2lines", "abc\ndef\n");
+		Assert.equal(is.nextChar(), "a");
+		Assert.equal(is.restOfLine, "abc", "from " + is.index + " to " + is.lineEnd);
+		
+		Assert.equal(is.nextChar(), "b");
+		Assert.equal(is.restOfLine, "bc", "from " + is.index + " to " + is.lineEnd);
+		
+		Assert.equal(is.nextChar(), "c");
+		Assert.equal(is.restOfLine, "c", "from " + is.index + " to " + is.lineEnd);
+		
+		Assert.equal(is.nextChar(), "\n");
+		Assert.equal(is.restOfLine, "", "from " + is.index + " to " + is.lineEnd);
+	}
+
+	@Test
+	testLine() {
+		let is = new InputSource("2lines", "abc\ndef\n");
+		Assert.equal(is.nextChar(), "a");
+		Assert.equal(is.currentLine, "abc", "abc");
+		
+		Assert.equal(is.nextChar(), "b");
+		Assert.equal(is.currentLine, "abc");
+		
+		Assert.equal(is.nextChar(), "c");
+		Assert.equal(is.currentLine, "abc");
+		
+		Assert.equal(is.nextChar(), "\n");
+		Assert.equal(is.currentLine, "abc");
+	}
+	
+
+}
+//right click this module and select "Run As -> Test in Node.js" to see the test results

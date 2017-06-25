@@ -1,0 +1,23 @@
+import {ProcessorState} from "org/mdspex/ProcessorState";
+
+
+export public class Processor {
+
+	private _processorState: ProcessorState;
+
+	/**
+	 * Subclasses may override but must call super then as well 
+	 * in order to set state.
+	 */
+	init(processorState: ProcessorState) {
+		if (!processorState) {
+			throw new Error("Cannot clear processor state, create new instance");
+		}
+		this._processorState = processorState;
+	}
+
+	get processorState(): ProcessorState {
+		return this._processorState;
+	}
+
+}

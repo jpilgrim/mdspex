@@ -1,0 +1,158 @@
+import {Element} from "org/mdspex/ASTNodes";
+import {ElementType} from "org/mdspex/ASTNodes";
+import {CatcodeMap} from "org/mdspex/Category";
+import {DefaultExtensions} from "org/mdspex/DefaultExtensions";
+import {Extension} from "org/mdspex/Extension";
+import {ExtensionContext} from "org/mdspex/Extension";
+import {InputSource} from "org/mdspex/InputSource";
+import {Token} from "org/mdspex/Token";
+import {OutputProvider} from "org/mdspex/Extension";
+
+export public interface ~ActiveExtension<T extends Element> {
+	extension: Extension;
+	element?: T;
+}
+
+
+export public interface IProcessorState {
+	get catcodeMap(): CatcodeMap
+
+	activeExtensions: [ActiveExtension<Element>];
+
+	indentLevel: int;
+
+	get inputSource(): InputSource;
+	
+	/**
+	 * Last token returned by lexer. Note that during lexing this is not set.
+	 */
+	get currentToken(): Token;
+
+	
+	get activeExtension(): ActiveExtension<Element>
+
+	get activeInlineExtension(): ActiveExtension<Element>
+	
+	
+}
+
+
+export public class ProcessorState implements IProcessorState {
+
+	@Final
+	@Override
+	public catcodeMap = new CatcodeMap();
+
+	@Final
+	nameBlockOrParExtensions = new Map<string, Extension>();
+
+	@Final
+	ctrlBlockOrParExtensions = new Map<string, [Extension]>();
+
+	@Final
+	nameInlineExtensions = new Map<string, Extension>();
+
+	@Final
+	ctrlInlineExtensions = new Map<string, [Extension]>();
+
+	@Final
+	@Override
+	public activeExtensions: [ActiveExtension<Element>] = [];
+	
+	@Final
+	public outputProviders = new Map<string, OutputProvider>();
+
+	@Override
+	public indentLevel: int = 0;
+
+	@Override
+	public inputSource: InputSource;
+	
+	/**
+	 * Last token returned by lexer. Note that during lexing this is not set.
+	 */
+	@Override
+	public currentToken: Token;
+
+	public setInputSource(inputSource: InputSource) {
+		this.inputSource = inputSource;
+	}
+
+	createExtensionContext(): ExtensionContext {
+
+		let currentElement = this.activeExtension ? this.activeExtension.element :
+			undefined;
+		let indentLevel = currentElement ? Math.max(currentElement.indentLevel, this.indentLevel) : this.indentLevel;
+		return new ExtensionContext({
+				indentLevel: indentLevel,
+				currentElement: currentElement,
+				processorState: this
+			});
+	}
+
+	public addExtensions(extensions: [Extension]) {
+		for (let ext of extensions) {
+			if (ext.elementType != ElementType.INLINE) {
+				if (ext.refByName) {
+					this.nameBlockOrParExtensions.set(ext.name, ext);
+				}
+				if (ext.ctrlStart) {
+					let extsWithStart = this.ctrlBlockOrParExtensions.get(ext.ctrlStart);
+					if (extsWithStart) {
+						if (extsWithStart.find(other => other.name == ext.name)) {
+							throw new Error("Duplicate control block extension " + ext.name + ".");
+						}
+					} else {
+						extsWithStart = [];
+						this.ctrlBlockOrParExtensions.set(ext.ctrlStart, extsWithStart);
+					}
+					extsWithStart.push(ext);
+				}
+			} else { // inline
+				if (ext.refByName) {
+					this.nameInlineExtensions.set(ext.name, ext);
+				}
+				if (ext.ctrlStart) {
+					let extsWithStart = this.ctrlInlineExtensions.get(ext.ctrlStart);
+					if (extsWithStart) {
+						if (extsWithStart.find(other => other.name == ext.name)) {
+							throw new Error("Duplicate control inline extension " + ext.name + ".");
+						}
+					} else {
+						extsWithStart = [];
+						this.ctrlInlineExtensions.set(ext.ctrlStart, extsWithStart);
+					}
+					extsWithStart.push(ext);
+				}
+			}
+			
+			if (ext.outputProvider) {
+				for (let name of ext.outputProvider.names) {
+					this.outputProviders.set(name, ext.outputProvider);
+				}
+			}
+		}
+	}
+
+	@Override
+	public get activeExtension(): ActiveExtension<Element> {
+		return this.activeExtensions ? this.activeExtensions[this.activeExtensions.length - 1] : undefined;
+	}
+
+	@Override
+	public get activeInlineExtension(): ActiveExtension<Element> {
+		let active = this.activeExtension;
+		if (active && active.extension.elementType != ElementType.INLINE) {
+			return undefined;
+		}
+		return active;
+	}
+
+}
+
+export public class DefaultProcessorState extends ProcessorState {
+
+	constructor() {
+		this.addExtensions(new DefaultExtensions().extensions);
+	}
+}

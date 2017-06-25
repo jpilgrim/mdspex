@@ -1,0 +1,11 @@
+import {Attr as HTMLAttr} from "org/mdspex/HTMLNodes";
+import {Element as HTMLElement} from "org/mdspex/HTMLNodes";
+import {Text as HTMLText} from "org/mdspex/HTMLNodes";
+
+export public interface HTMLFactory {
+	createElement(name: string): HTMLElement
+	createText(): HTMLText	
+	createAttr(name: string, value: string): HTMLAttr
+}
+
+
