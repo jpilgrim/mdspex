@@ -2,22 +2,22 @@
 
 This is WORK IN PROGRESS!
 
-This document specified the markdown language Spex with default extensions. The Spex processor is currently developed and not done yet.
-The features described in this document link to github issues at https://github.com/jpilgrim/spex/issues . These issues may be not closed yet,
+This document specified the markdown language MDSpex with default extensions. The MDSpex processor is currently developed and not done yet.
+The features described in this document link to github issues at https://github.com/jpilgrim/mdspex/issues . These issues may be not closed yet,
 meaning that the corresponding features are not implemented yet.
 
 # Overview
 
-Spex is an extensible markdown language and processor written in N4JS/JavaScript.
-The goal of Spex is to provide an unicode based language which is
-as readable as markdown (and compatible with [https://github.github.com/gfm|GitHub Flavored Markdown])
-and powerful enough to enable writing technical specifications,
+MDSpex is an extensible markdown language and processor written in N4JS/JavaScript.
+The goal of MDSpex is to provide an unicode based language which is
+as readable as *markdown* (and compatible with [https://github.github.com/gfm|GitHub Flavored Markdown])
+and powerful enough to enable writing technical *specifications*,
 in particular for software projects. If possible, extensions are to be designed compatible with
 [http://asciidoctor.org/docs/asciidoc-writers-guide|Asciidoc] .
 For the target document type, it comes with a set of predefined extensions.
 For mathematical formulars, Tex-like syntax is supported.
 
-The output format of Spex documents is created by output processors. 
+The output format of MDSpex documents is created by output processors. 
 Although different output formats may be produced by different processors, 
 the focus is on a single output processor creating high-quality printable
 HTML, using CSS and JavaScript (for screen reading).
@@ -30,11 +30,11 @@ However all extensions should follow similar syntax patterns.
 An important feature of documents is linking. 
 A reference links to a named element or a target outside the document.
 Elements can be nested and typed and they are referred to by name or ID. 
-Spex supports the notion scoping and fully (or partially) qualified names.
+MDSpex supports the notion scoping and fully (or partially) qualified names.
 
-The following snippet shows a simple Spex example using pre-defined extensions and links:
+The following snippet shows a simple MDSpex example using pre-defined extensions and links:
 
-```spex
+```mdspex
 # Main
 
 ## Intro
@@ -59,7 +59,7 @@ REQ RPRJ-123 (Version 1): Some Requirement
 
 # Character Codes
 
-Similar to Tex, Spex is based on the notion of characters with different categories. The following character 
+Similar to Tex, MDSpex is based on the notion of characters with different categories. The following character 
 categories are the most important once:
 
 	LETTER: a-z, A-Z, umlauts etc. 
@@ -124,13 +124,13 @@ unless otherwise specified.
 
 # Document Structure
 
-A Spex document consists of a elements.
+A MDSpex document consists of a elements.
 An element has a name and may has attributes and may contain other elements. We call the contained elements children and the
 container parent. Attributes have a name and a value.
 
 Blocks are elements usually separated by empty lines. Actually it is the output processor that
 defined which element is rendered as a block or not, but usually this difference is already reflected in
-the Spex source code. Children are usually visualized by indentation.
+the MDSpex source code. Children are usually visualized by indentation.
 
 The core processor creates only two kind of elements:
 
@@ -147,7 +147,7 @@ The default document structure can be defined as follows:
 REQ SPEX-101: Core document structure
 	TASK: #1, #13
 	EBNF:
-		document creates root element "spex": 		
+		document creates root element "mdspex": 		
 						blocks«indent=0»;
 		blocks«indent»: EMPTYLINE* block«indent» (EMPTYLINE+ block«indent»)* EMPTYLINE*;
 		block«indent»:	paragraph«indent» | codeblock«indent» | extBlock«indent»;
@@ -165,7 +165,7 @@ This refers to extensions in general as specified in the next section.
 
 # Extensions
 
-Extensions are additions to the Spex system, written in JavaScript (or N4JS). The need to 
+Extensions are additions to the MDSpex system, written in JavaScript (or N4JS). The need to 
 implement the interface [src:Extension].
 
 Extensions identified by [Character Codes/LETTER] tokens are called commands
@@ -266,7 +266,7 @@ in following the colon. Otherwise, the text after the colon is the first paragra
 SAMPLE:
 	The following snippet shows a requirement block with an prefix id, a version and a title:
 	
-	```spex
+	```mdspex
 	This is normal text.
 	
 	REQ SPEX-123 (version 1): Some Requirement
@@ -281,7 +281,7 @@ Extensions may change this default behavior, e.g., modifies the indent level of 
 
 # Macros
 
-Macros are similar to extensions except that they are written using the Spex extension block `SPEX_MACRO`.
+Macros are similar to extensions except that they are written using the MDSpex extension block `SPEX_MACRO`.
 
 TODO: Specify macros, possible macros: alias, rename, block
 
@@ -340,15 +340,15 @@ References are created by extension, see below for details.
 
 ## Dictionaries and External Links
 
-So far all anchors were defined in Spex documents directly. Often it is required to link to elements "outside" the document.
+So far all anchors were defined in MDSpex documents directly. Often it is required to link to elements "outside" the document.
 
 The most obvious case is to link to arbitrary URLs. 
 This is simply possible by using generic referenes and "http" (or "https") as element type.
 
 These links directly link to the URL defined by the reference. In other words: The reference needs to be fully qualified.
 
-In many cases it is convenient to use PQNs for linking. This is true in particular for source code elements. Spex supports dictionaries for
-enabling PQNs to arbitrary elements outside the Spex document. 
+In many cases it is convenient to use PQNs for linking. This is true in particular for source code elements. MDSpex supports dictionaries for
+enabling PQNs to arbitrary elements outside the MDSpex document. 
 
 In case of internal links, a link as a single purpose: The reader of the documents wants to navigate to the element defining the anchor.
 Thus, most internal links simply navigate to the anchor.
@@ -361,14 +361,14 @@ TODO: Dictionaries similar to AsciiSpec linking
 
 # Counters
 
-Spex supports counters. A counter is a named integer variable. An extension may assign the current value of a named counter to an element's attribute,
+MDSpex supports counters. A counter is a named integer variable. An extension may assign the current value of a named counter to an element's attribute,
 incrementing the counter automatically or reset a counter. The value of the counter can be used to compute numbers of list items, headings, 
 or to make unique IDs (or names) of elements. The counters are used by the extensions internally, see API for details.
  
 
 # Output
 
-Spex focuses on high-quality HTML output (with JavaScript for screen and special formatting for print). The parser initially creates a simple tree
+MDSpex focuses on high-quality HTML output (with JavaScript for screen and special formatting for print). The parser initially creates a simple tree
 with elements named according to the names of the extensions (or the elements created as specified). Unless specified otherwise, these elements are
 all converted to HTML `div` elements with the element type as class name. If the element defines an ID explicitly, it is set as ID. Otherwise an ID
 is computed from the title.
@@ -379,7 +379,7 @@ TODO: how to compute titles.
 
 ## Headings
 
-Spex supports so-called ATX headings, using '#' as control sequence. The number of '#' characters defines the level of the heading.
+MDSpex supports so-called ATX headings, using '#' as control sequence. The number of '#' characters defines the level of the heading.
 
 REQ SPEX-601: ATX Headings
 	TASK:#6
@@ -435,7 +435,7 @@ REQ SPEX-901: Description Lists
 
 ## Generic References
 
-Spex comes with a built-in extension enabling generic references. These references are placed in square brackets and enable linking via FQN or PQN.
+MDSpex comes with a built-in extension enabling generic references. These references are placed in square brackets and enable linking via FQN or PQN.
 The output of the link is defined by the extension defining the anchor type. The example [sample:-1] shows this kind of references.
 
 REQ SPEX-1001:
@@ -520,7 +520,7 @@ TODO: REQ, INFO, WARNING, TODO, etc.
 ## Modules
 
 TODO:
-	Spex support splitting up a document into modules and combining these modules via the "include" extension. This extension simply includes the referenced
+	MDSpex support splitting up a document into modules and combining these modules via the "include" extension. This extension simply includes the referenced
 	document into the current one. It follows the [Standard Command Format] without id or attributes.
 	
 	EBNF:

@@ -4,19 +4,19 @@ This is WORK IN PROGRESS. That is, although some basic parts are already working
 most features described here or in the specification are not working yet.
 As soon as a first usable version is ready, this disclaimer is to be removed.
 
-[![Build Status](https://travis-ci.org/jpilgrim/spex.svg?branch=master)](https://travis-ci.org/jpilgrim/spex)
+[![Build Status](https://travis-ci.org/jpilgrim/mdspex.svg?branch=master)](https://travis-ci.org/jpilgrim/mdspex)
 
 # Overview
 
-Spex is an extensible markdown language and processor written in N4JS (<https://numberfour.github.io/n4js/>). N4JS is an extension of JavaScript, and the code is transpiled to plain JavaScript. Thus extensions can be written in N4JS or JavaScript (or other languages transpiling to JavaScript).
+MDSpex is an extensible markdown language for writing technical specifications. The parser and processor are written in N4JS (<https://numberfour.github.io/n4js/>). N4JS is an extension of JavaScript, and the code is transpiled to plain JavaScript. Thus extensions can be written in N4JS or JavaScript (or other languages transpiling to JavaScript).
 
-The goal of Spex is to provide an unicode based textual language which is
+The goal of MDSpex is to provide an unicode based textual language which is
 as readable as markdown (and, as far as possible, compatible with GitHub Flavored Markdown, <https://github.github.com/gfm>) yet powerful enough to enable writing technical specifications,
 in particular for software projects . If possible, extensions are to be designed compatible with
 Asciidoc <http://asciidoctor.org/docs/asciidoc-writers-guide>.
 For the target document types, namely software requirement specifications, it will come with a set of predefined extensions. For mathematical formulars, Tex-like syntax is to be supported.
 
-The output format of Spex documents is created by output processors. 
+The output format of MDSpex documents is created by output processors. 
 Although different output formats may be produced by different processors, 
 the focus is on a single output processor creating high-quality printable
 HTML, using CSS and JavaScript (for screen reading).
@@ -29,11 +29,11 @@ However all extensions should follow similar syntax patterns.
 An important feature of documents is linking. 
 A reference links to a named element or a target outside the document.
 Elements can be nested and typed and they are referred to by name or ID. 
-Spex supports the notion scoping and fully (or partially) qualified names.
+MDSpex supports the notion scoping and fully (or partially) qualified names.
 
-The following snippet shows a simple Spex example using pre-defined extensions and links:
+The following snippet shows a simple MDSpex example using pre-defined extensions and links:
 
-```spex
+```mdspex
 # Main
 
 ## Intro
@@ -60,7 +60,7 @@ REQ RPRJ-123 (Version 1): Some Requirement
 
 *Question:* When will it be usable?
 
-*Answer:* As soon as the Spex specification found at <https://github.com/jpilgrim/spex/blob/master/spex.doc/index.spex> is successfully processed and the result is available via the GitHub pages.
+*Answer:* As soon as the MDSpex specification found at <https://github.com/jpilgrim/mdspex/blob/master/mdspex.doc/index.md> is successfully processed and the result is available via the GitHub pages.
 
 # License
 

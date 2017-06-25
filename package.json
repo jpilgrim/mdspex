@@ -1,11 +1,11 @@
 {
-  "name": "spex",
+  "name": "CI_mdspex",
   "version": "0.1.0",
   "author": "Jens von Pilgrim <developer@jevopi.de>",
   "license": "EPL-1.0",
   "description": "Extensible markdown for specifications written in N4JS/JavaScript",
   "scripts": {
-    "test": "n4js-mangelhaft --scan . --compile --targetPlatformFile targetplatform.n4tp --targetPlatformInstallLocation build/npm --xunitReportFile build/spex-test-report.xml --xunitReportName spex-test-report --xunitReportPackage spex.tests"
+    "test": "n4js-mangelhaft --scan . --compile --targetPlatformFile targetplatform.n4tp --targetPlatformInstallLocation build/npm --xunitReportFile build/mdspex-test-report.xml --xunitReportName mdspex-test-report --xunitReportPackage mdspex.tests"
   },
   "repository": {
     "type": "git",
