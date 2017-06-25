@@ -82,9 +82,8 @@ export public class ProcessorState implements IProcessorState {
 
 		let currentElement = this.activeExtension ? this.activeExtension.element :
 			undefined;
-		let indentLevel = currentElement ? Math.max(currentElement.indentLevel, this.indentLevel) : this.indentLevel;
 		return new ExtensionContext({
-				indentLevel: indentLevel,
+				indentLevel: this.indentLevel,
 				currentElement: currentElement,
 				processorState: this
 			});

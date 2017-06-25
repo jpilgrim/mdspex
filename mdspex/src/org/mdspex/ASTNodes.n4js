@@ -1,4 +1,9 @@
 
+export public function is(node: Node, name: string): boolean {
+	if (node instanceof Element) return (node as Element).name == name;
+	return false;
+}
+
 export public enum ElementType {
 	BLOCK,
 	INLINE,
@@ -11,13 +16,29 @@ export public interface ASTSwitch<T> {
 		if (!node) {
 			return undefined;
 		}
-		let caseName = "case" + N4Type.of(node).name;
-		let switcher: Object = this;
-		let fct = switcher[caseName] as Function;
-		if (!fct) {
-			throw new TypeError(typeof this + " does not provide function " + caseName);
+		if (node instanceof Document) {
+			return this.caseDocument(node as Document);
 		}
-		return fct.call(this, node) as T;
+		if (node instanceof Block) {
+			return this.caseBlock(node as Block);
+		}
+		if (node instanceof Inline) {
+			return this.caseInline(node as Inline);
+		}
+		if (node instanceof Paragraph) {
+			return this.caseParagraph(node as Paragraph);
+		}
+		if (node instanceof CDATAContainer) {
+			return this.caseCDATAContainer(node as CDATAContainer);
+		}
+		if (node instanceof CDATA) {
+			return this.caseCDATA(node as CDATA);
+		}
+		if (node instanceof Element) {
+			return this.caseElement(node as Element);
+		}
+		return this.caseNode(node);
+		
 	}
 
 	protected caseNode(node: Node): T {
@@ -81,6 +102,10 @@ export public abstract class Node {
 		}
 	}
 
+	/**
+	 * Returns XML-like string of this node and its children, formatting (indentation wise) according
+	 * to indent level. Basically used for debugging and tests.
+	 */
 	public abstract toXML(indent=0): string
 
 }
@@ -114,13 +139,17 @@ export public abstract class Element extends Node {
 		if (this.nodes) {
 			parts.push(">");
 			parts.push(this.nodes.map((c, i) => {
-					if (!(c instanceof CDATA || i > 0)) {
-						if (c instanceof Element) return "\n" + TAB.repeat((c as Element).indentLevel) + c
-							.toXML(); else return "\n" + TAB.repeat(this.indentLevel) + c.toXML();
+					if (!(c instanceof CDATA) || i > 0) {
+						if (c instanceof Element) {
+							let ce = c as Element;
+							return "\n" /*  + ce.indentLevel + ":" */ + TAB.repeat(ce.indentLevel) + c.toXML();
+						} else {
+							return "\n" + TAB.repeat(this.indentLevel) + c.toXML();
+						}
 					} else {
 						return c.toXML();
 					}
-				}).join("\n"));
+				}).join(""));
 			if (!(this.nodes[this.nodes.length - 1] instanceof CDATA)) {
 				parts.push("\n" + TAB.repeat(this.indentLevel));
 			}
@@ -141,7 +170,7 @@ export public abstract class Element extends Node {
 
 	public abstract type(): ElementType
 
-	public lastChild(): Node {
+	public get lastChild(): Node {
 		if (this.nodes) {
 			return this.nodes[this.nodes.length - 1];
 		}
@@ -149,10 +178,28 @@ export public abstract class Element extends Node {
 	}
 
 	public trim() {
-		let child = this.lastChild();
+		let child = this.lastChild;
 		if (child instanceof CDATA) {
 			(child as CDATA).trim();
 		}
+	}
+	
+	public setAttribute(name: string, value: string) {
+		let attr = this.attributes.find(a=>a.name==name);
+		if (attr) {
+			attr.value = value;
+		} else {
+			attr = new Attribute(name, value);
+			this.attributes.push(attr);
+		}
+	}
+	
+	public getAttribute(name: string, defValue: string=): string {
+		let attr = this.attributes.find(a=>a.name==name);
+		if (attr) {
+			return attr.value;
+		}
+		return defValue;
 	}
 
 }
@@ -214,7 +261,6 @@ export public class Inline extends CDATAContainer {
  * A paragraph can only contain CDATA or inline elements, but no block elements nor
  * other paragraphs. 
  */
-@Final
 export public class Paragraph extends CDATAContainer {
 
 	@Override
@@ -244,8 +290,13 @@ export public class CDATA extends Node {
 
 @Final
 export public class Attribute {
-	name: string;
+	@Final name: string;
 	value: string;
+	
+	public constructor(name: string, value: string) {
+		this.name = name;
+		this.value = value;
+	}
 }
 
 @Final

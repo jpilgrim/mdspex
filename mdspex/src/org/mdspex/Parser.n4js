@@ -44,18 +44,16 @@ export public class Parser extends Processor {
 	@Inject
 	documentHandler: DocumentHandler;
 	eolCount: int = 0;
-	
+
 	@Inject
 	injector: N4Injector;
 	// workaround because @PerInjectionSingleton not implemented!
-	
-		
 	parse(inputSource: InputSource): Document {
 		this.init(this.injector.create(ProcessorState));
-		
+
 		this.processorState.outputProviders.set(this.paragraphHandler.name, this.paragraphHandler.outputProvider);
 		this.processorState.outputProviders.set(this.preformattedHandler.name, this.preformattedHandler.outputProvider);
-		
+
 		this.lexer.init(this.processorState);
 		this.processorState.setInputSource(inputSource);
 
@@ -70,34 +68,32 @@ export public class Parser extends Processor {
 		// Do parse
 		while (!(tokenEntry = this.lexer.next()).done) {
 			let token = tokenEntry.value;
-			
+
 			switch (token.category) {
 				case Category.EOL:
 					this.closeWordElement();
 					this.closeLineElement();
 
 					this.eolCount++;
-					if (this.eolCount == 2) { // new paragraph
-						this.popToBlock();
+					if (this.eolCount == 2) { // end current paragraph
+						this.popToBlock(this.processorState.activeExtension.element.indentLevel);
 					}
 					this.processorState.indentLevel = 0;
 					break;
 				case Category.INDENT:
 					this.processorState.indentLevel++;
-					this.eolCount = 0;
 					break;
 				case Category.CMD: case Category.CTRL:
-					let activeExt = token.activeExtension;
-					if (activeExt.element) { // close this element
+					let tokenExt = token.activeExtension;
+					if (tokenExt.element) { // ctrl/cmd signaled end of element:
 						this.closeElement();
 					} else { // create new element
-						if (activeExt.extension.elementType != ElementType.INLINE) {
-							this.popToBlock();
+						if (tokenExt.extension.elementType != ElementType.INLINE) {
+							this.popToBlock(this.processorState.indentLevel);
 						} else {
 							this.ensureCDATAContainer();
 						}
-						activeExt.element = activeExt.extension.createElement(this.processorState.createExtensionContext());
-						this.processorState.activeExtensions.push(activeExt);
+						this.createElement(tokenExt.extension);
 					}
 					this.eolCount = 0;
 					break;
@@ -129,34 +125,37 @@ export public class Parser extends Processor {
 				break;
 			}
 		}
-		for (let i=0; i<nested; i++) {
+		for (let i = 0; i < nested; i++) {
 			this.closeElement();
 		}
 	}
-	
+
 	closeWordElement() {
 		let nested = 0;
 		for (let i = this.processorState.activeExtensions.length - 1; i >= 0; i--) {
 			let ext = this.processorState.activeExtensions[i];
 			switch (ext.extension.elementType) {
-				case ElementType.PAR:
-				case ElementType.BLOCK: return;
+				case ElementType.PAR: case ElementType.BLOCK: return;
 			}
 			nested++;
 			if (ext.extension.endMarker == ExtensionEndMarker.SPACE) {
 				break;
 			}
 		}
-		for (let i=0; i<nested; i++) {
+		for (let i = 0; i < nested; i++) {
 			this.closeElement();
 		}
 	}
 
-	popToBlock(): ActiveExtension<Block> {
+	/**
+	 * Selects element (and extension) with given indent level.
+	 * Elements with higher indent level are closed.
+	 */
+	popToBlock(indentLevel: int): ActiveExtension<Block> {
 		while (this.processorState.activeExtensions) {
 			let activeExt = peek(this.processorState.activeExtensions);
-			if (activeExt.element instanceof Block && activeExt.element.indentLevel <= this.processorState.indentLevel) {
-				this.processorState.indentLevel = activeExt.element.indentLevel; // TODO ?
+			if (activeExt.element instanceof Block
+				&& activeExt.element.indentLevel <= indentLevel) {
 				return activeExt as ActiveExtension<Block>;
 			}
 			activeExt.extension.closeElement(activeExt.element, this.processorState.createExtensionContext());
@@ -172,19 +171,35 @@ export public class Parser extends Processor {
 				element: element
 			};
 		this.processorState.activeExtensions.push(activeExt);
+		if (element instanceof Block) {
+			this.processorState.indentLevel = element.indentLevel;
+		}
 	}
 
 	closeElement() {
 		let activeElement = this.processorState.activeExtensions.pop();
 		activeElement.extension.closeElement(activeElement.element, this.processorState.createExtensionContext());
 	}
-
+	
+	/**
+	 * Ensures that a CDATAContainer is available at the correct indent level.
+	 */
 	ensureCDATAContainer(): ActiveExtension<CDATAContainer> {
-		let activeExt = this.processorState.activeExtension;
-		if (!(activeExt.element instanceof CDATAContainer)) {
-			if (this.processorState.indentLevel > activeExt.element.indentLevel) {
+
+		if (this.processorState.activeExtension.element.indentLevel > this.processorState.indentLevel) {
+			this.popToBlock(this.processorState.indentLevel);
+		}
+
+		if (!(this.processorState.activeExtension.element instanceof CDATAContainer)) {
+			while (
+				//(!this.processorState.activeExtension.element instanceof Block) ||
+				this.processorState.indentLevel < this.processorState.activeExtension.element.indentLevel
+			) {
+				this.closeElement();
+			}
+			if (this.processorState.indentLevel > this.processorState.activeExtension.element.indentLevel) {
 				this.createElement(this.preformattedHandler);
-			} else {
+			} else { // this.processorState.indentLevel == this.processorState.activeExtension.element.indentLevel
 				this.createElement(this.paragraphHandler);
 			}
 		}
@@ -197,5 +212,4 @@ export public class Parser extends Processor {
 		}
 	}
 
-	
 }

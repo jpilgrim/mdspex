@@ -1,0 +1,101 @@
+import {Block} from "org/mdspex/ASTNodes";
+import {Element} from "org/mdspex/ASTNodes";
+import {ElementType} from "org/mdspex/ASTNodes";
+import {AbstractExtension} from "org/mdspex/Extension";
+import {ExtensionContext} from "org/mdspex/Extension";
+import {ExtensionEndMarker} from "org/mdspex/Extension";
+
+
+class BlockUL extends Block {
+	@Final bulletListMarker: string;
+	
+	constructor(indentLevel: int, parent: Element,
+		bulletListMarker: string) {
+		super("ul", indentLevel, parent);
+		this.bulletListMarker = bulletListMarker;
+	}
+}
+
+
+export public abstract class ListItems extends AbstractExtension {
+
+	public abstract get regEx(): RegExp
+
+	@Override
+	public get elementType(): ElementType {
+		return ElementType.BLOCK;
+	}
+
+	@Override
+	public get endMarker(): ExtensionEndMarker {
+		return ExtensionEndMarker.NONE;
+	}
+
+	@Override
+	public get name(): string {
+		return "ListItems";
+	}
+
+	/**
+	 * Returns level of heading (1-6).
+	 */
+	@Override
+	public matchStart(context: ExtensionContext): int {
+		let length = this.findMatch(context.restOfLineWithCtrl, this.regEx);
+		return length - 1;
+	}
+
+	findMatch(line: string, re: RegExp): int {
+		let res = line.match(re);
+		if (res) {
+			return res[0].length;
+		}
+		return 0;
+	}
+
+	@Override
+	public createElement(context: ExtensionContext): Element {
+
+		let precedingSibling = context.precedingSiblingElement;
+
+		let ul: BlockUL;
+		if (precedingSibling instanceof BlockUL && (precedingSibling as BlockUL).bulletListMarker==this.ctrlStart) {
+			ul = precedingSibling as BlockUL;
+		} else {
+			ul = new BlockUL(context.indentLevel, context.currentElement, this.ctrlStart);
+		}
+
+//		console.log(context.indentLevel);
+		let li = new Block("li", context.indentLevel + 1, ul);
+		return li;
+
+	}
+
+}
+
+export public class BulletListItems extends ListItems {
+
+	@Override
+	public get regEx(): RegExp {
+		return /^\*\s/;
+	}
+
+	@Override
+	public get ctrlStart(): string {
+		return "*";
+	}
+}
+
+export public class DashListItems extends ListItems {
+
+	@Override
+	public get regEx(): RegExp {
+		return /^-\s/;
+	}
+
+	@Override
+	public get ctrlStart(): string {
+		return "-";
+	}
+}
+

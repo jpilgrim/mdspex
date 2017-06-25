@@ -14,6 +14,8 @@ import {OutputContext} from "org/mdspex/Extension";
 import {OutputProvider} from "org/mdspex/Extension";
 import {Element as HTMLElement} from "org/mdspex/HTMLNodes";
 import {ATXHeading} from "org/mdspex/extensions/ATXHeadings";
+import {BulletListItems} from "org/mdspex/extensions/ListItems";
+import {DashListItems} from "org/mdspex/extensions/ListItems";
 
 export public class DefaultExtensions {
 	
@@ -21,6 +23,8 @@ export public class DefaultExtensions {
 	constructor() {
 		this.extensions = ["NOTE", "INFO", "WARNING", "TODO"].map(name => new NamedBlockCommand(name));
 		this.extensions.push(new ATXHeading());
+		this.extensions.push(new BulletListItems());
+		this.extensions.push(new DashListItems());
 		this.extensions.push(new InlineFormatting('*', 'strong'));
 		this.extensions.push(new InlineFormatting('_', 'em'));
 

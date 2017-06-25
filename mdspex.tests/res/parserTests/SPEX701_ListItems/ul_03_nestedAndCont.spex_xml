@@ -1,0 +1,32 @@
+Hello
+
+* this
+	* is
+		* a list
+	* with
+* items
+_______________________________________
+<spex>
+<p>Hello</p>
+<ul>
+    <li>
+    <p>this</p>
+    <ul>
+        <li>
+        <p>is</p>
+        <ul>
+            <li>
+            <p>a list</p>
+            </li>
+        </ul>
+        </li>
+        <li>
+        <p>with</p>
+        </li>
+    </ul>
+    </li>
+    <li>
+    <p>items</p>
+    </li>
+</ul>
+</spex>

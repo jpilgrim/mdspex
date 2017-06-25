@@ -1,0 +1,27 @@
+With empty lines
+
+* this is a longer paragraph
+	spanning multiple
+	lines
+
+* And a new item
+
+* and a last item
+
+And text.
+_______________________________________
+<spex>
+<p>With empty lines</p>
+<ul>
+    <li>
+    <p>this is a longer paragraph spanning multiple lines</p>
+    </li>
+    <li>
+    <p>And a new item</p>
+    </li>
+    <li>
+    <p>and a last item</p>
+    </li>
+</ul>
+<p>And text.</p>
+</spex>

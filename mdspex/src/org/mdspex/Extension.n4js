@@ -8,6 +8,7 @@ import {Node as HTMLNode} from "org/mdspex/HTMLNodes";
 import {IProcessorState} from "org/mdspex/ProcessorState";
 import {CharacterToken} from "org/mdspex/Token";
 import {Token} from "org/mdspex/Token";
+import {Node} from "org/mdspex/ASTNodes";
 
 export public class OutputContext {
 
@@ -65,6 +66,26 @@ export public class ExtensionContext {
 	public get restOfLineWithCtrl(): string {
 		if (this.processorState.currentToken) return this.processorState.currentToken.rawValue + this
 			.restOfLine; else return this.restOfLine;
+	}
+	
+	/**
+	 * Returns (last) preceding sibling or undefined, if no such sibling exists.
+	 */
+	public get precedingSibling(): Node {
+		if (this.currentElement) {
+			return this.currentElement.lastChild;
+		}
+		return undefined;
+	}
+
+	/**
+	 * Returns (last) preceding sibling element or undefined, if no such sibling exists.
+	 */
+	public get precedingSiblingElement(): Element {
+		if (this.currentElement && this.currentElement.lastChild instanceof Element) {
+			return this.currentElement.lastChild as Element;
+		}
+		return undefined;
 	}
 }
 

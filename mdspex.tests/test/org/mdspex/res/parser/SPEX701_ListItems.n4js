@@ -1,0 +1,25 @@
+import {ResourceBasedTest} from "org/mdspex/ResourceBasedTest";
+
+
+export public class SPEX701_ListItems extends ResourceBasedTest {
+
+	@Parameters("[{index}] {0}")
+    public static getSomeParameters() {
+        return [
+        	"ul_01_basic",
+        	"ul_02_nested",
+        	"ul_03_nestedAndCont",
+        	"ul_04_liWithoutPar",
+        	"ul_05_liWithParsSimple",
+        	"ul_06_liWithPars",
+        	"ul_07_noEmptyLines",
+        	"ul_08_withEmptyLines",
+        	"ul_09_listAndATXHeading",
+        	"ul_10_liAndEmph",
+        	"ul_11_dashVsBullet"
+        ].map(s=>[s]);
+    }
+    
+    
+	
+}

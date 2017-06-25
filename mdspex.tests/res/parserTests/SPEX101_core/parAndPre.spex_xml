@@ -4,5 +4,5 @@ Hello
 _______________________________________
 <spex>
 <p>Hello</p>
-<precode>World</precode>
+	<precode>World</precode>
 </spex>

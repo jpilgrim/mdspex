@@ -1,0 +1,31 @@
+* bullet
+* list
+- dash
+- list
+	* with bullet
+end
+_______________________________________
+<spex>
+<ul>
+	<li>
+	<p>bullet</p>
+	</li>
+	<li>
+	<p>list</p>
+	</li>
+</ul>
+<ul>
+	<li>
+	<p>dash</p>
+	</li>
+	<li>
+	<p>list</p>
+	<ul>
+		<li>
+		<p>with bullet</p>
+		</li>
+	</ul>
+	</li>
+</ul>
+<p>end</p>
+</spex>
