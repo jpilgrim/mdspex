@@ -1,0 +1,130 @@
+import {Document} from "org/mdspex/ASTNodes";
+import {Element} from "org/mdspex/ASTNodes";
+import {ElementType} from "org/mdspex/ASTNodes";
+import {Paragraph} from "org/mdspex/ASTNodes";
+import {AbstractExtension} from "org/mdspex/Extension";
+import {AbstractOutputProvider} from "org/mdspex/Extension";
+import {Extension} from "org/mdspex/Extension";
+import {ExtensionContext} from "org/mdspex/Extension";
+import {ExtensionEndMarker} from "org/mdspex/Extension";
+import {IdentityProvider} from "org/mdspex/Extension";
+import {InlineFormatting} from "org/mdspex/Extension";
+import {NamedBlockCommand} from "org/mdspex/Extension";
+import {OutputContext} from "org/mdspex/Extension";
+import {OutputProvider} from "org/mdspex/Extension";
+import {Element as HTMLElement} from "org/mdspex/HTMLNodes";
+import {ATXHeading} from "org/mdspex/extensions/ATXHeadings";
+
+export public class DefaultExtensions {
+	
+	extensions: [Extension];
+	constructor() {
+		this.extensions = ["NOTE", "INFO", "WARNING", "TODO"].map(name => new NamedBlockCommand(name));
+		this.extensions.push(new ATXHeading());
+		this.extensions.push(new InlineFormatting('*', 'strong'));
+		this.extensions.push(new InlineFormatting('_', 'em'));
+
+	}
+
+}
+
+
+export public class DocumentHandler extends AbstractExtension {
+
+	@Override
+	public get name(): string {
+		return "spex";
+	}
+
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		return new Document();
+	}
+
+	@Override
+	public get elementType(): ElementType {
+		return ElementType.BLOCK;
+	}
+
+	@Override
+	public get endMarker(): ExtensionEndMarker {
+		return ExtensionEndMarker.NONE;
+	}
+}
+
+export public class ParagraphHandler extends AbstractExtension {
+
+	const ParagraphProvider = new IdentityProvider("p");
+
+	@Override
+	public get name(): string {
+		return "p";
+	}
+
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		return new Paragraph("p", context.indentLevel, context.currentElement);
+	}
+
+	@Override
+	public get elementType(): ElementType {
+		return ElementType.PAR;
+	}
+
+	@Override
+	public get endMarker(): ExtensionEndMarker {
+		return ExtensionEndMarker.NONE;
+	}
+	
+	@Override
+	public get outputProvider(): OutputProvider {
+		return ParagraphHandler.ParagraphProvider; 
+	}
+}
+
+export public class PrecodeToPreCodeProvider extends AbstractOutputProvider {
+/**
+	 * Default provider returns empty array, matches all.
+	 */
+	@Override
+	public get names(): [string] {
+		return ["precode"];
+	}
+	
+	@Override
+	public process(context: OutputContext): HTMLElement {
+		let pre = context.factory.createElement("pre");
+		super.copyAttributes(pre, context);
+		let code = context.factory.createElement("code");
+		pre.appendChild(code);
+		return code;
+	}
+}
+
+export public class PreformattedHandler extends AbstractExtension {
+
+	@Override
+	public get name(): string {
+		return "precode";
+	}
+
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		return new Paragraph("precode", context.indentLevel, context.currentElement);
+	}
+
+	@Override
+	public get elementType(): ElementType {
+		return ElementType.PAR;
+	}
+
+	@Override
+	public get endMarker(): ExtensionEndMarker {
+		return ExtensionEndMarker.NONE;
+	}
+	
+	@Override
+	public get outputProvider(): OutputProvider {
+		return ParagraphHandler.ParagraphProvider; 
+	}
+}

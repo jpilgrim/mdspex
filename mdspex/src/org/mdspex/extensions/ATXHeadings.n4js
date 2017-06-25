@@ -1,0 +1,86 @@
+import {Element} from "org/mdspex/ASTNodes";
+import {ElementType} from "org/mdspex/ASTNodes";
+import {Paragraph} from "org/mdspex/ASTNodes";
+import {Category} from "org/mdspex/Category";
+import {AbstractExtension} from "org/mdspex/Extension";
+import {ExtensionContext} from "org/mdspex/Extension";
+import {ExtensionEndMarker} from "org/mdspex/Extension";
+import {IdentityProvider} from "org/mdspex/Extension";
+import {OutputProvider} from "org/mdspex/Extension";
+
+
+export public class ATXHeading extends AbstractExtension {
+	
+	const ATXStartRegEx = /^#{1,6}\s/
+	const ATXEndRegEx = /^#+\s*$/
+	const HeadingProvider = new IdentityProvider("h1", "h2", "h3", "h4", "h5", "h6");
+
+	@Override
+	public get ctrlStart(): string {
+		return "#"
+	}
+
+	@Override
+	public get ctrlEnd(): string {
+		return "#"
+	}
+	
+	@Override
+	public get elementType(): ElementType {
+		return ElementType.PAR
+	}
+
+	@Override
+	public get endMarker(): ExtensionEndMarker {
+		return ExtensionEndMarker.EOL;
+	}
+	
+	
+
+	@Override
+	public get name(): string {
+		return "ATXHeading"
+	}
+
+	/**
+	 * Returns level of heading (1-6).
+	 */
+	@Override
+	public matchStart(context: ExtensionContext): int {
+		if (context.indentLevel>0) {
+			return 0;
+		}
+		let length = this.findMatch(context.restOfLineWithCtrl, ATXHeading.ATXStartRegEx);
+		return length -1;
+	}
+	
+	@Override
+	public matchEnd(context: ExtensionContext): int {
+		if (context.previousRawToken.category!=Category.SPACE) {
+			return 0;
+		}
+		return this.findMatch(context.restOfLineWithCtrl, ATXHeading.ATXEndRegEx);
+	}
+	
+	findMatch(line: string, re: RegExp): int	{
+		let res = line.match(re);
+		// [ '###### ', index: 0, input: '###### Hello' ]
+		if (res) {
+			return res[0].length;
+		}
+		return 0;
+	}
+	
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		let level = context.processorState.currentToken.rawValue.length;
+		return new Paragraph("h" + level, context.indentLevel, context.currentElement);
+	}
+	
+	@Override
+	public get outputProvider(): OutputProvider {
+		return ATXHeading.HeadingProvider 
+	}
+	
+	
+}

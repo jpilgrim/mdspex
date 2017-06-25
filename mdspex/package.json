@@ -1,0 +1,12 @@
+{
+  "author" : "Jens von Pilgrim <developer@jevopi.de>",
+  "license" : "EPL-1.0",
+  "description" : "Extensible markdown for specifications written in N4JS/JavaScript",
+  "repository" : {
+    "type" : "git",
+    "url" : "https://github.com/jpilgrim/mdspex.git"
+  },
+  "bin" : {
+    "mdspex": "./bin/index.js"
+  }
+}

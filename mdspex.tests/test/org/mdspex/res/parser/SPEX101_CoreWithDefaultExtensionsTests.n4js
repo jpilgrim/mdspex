@@ -1,0 +1,17 @@
+import {ResourceBasedTest} from "org/mdspex/ResourceBasedTest";
+import {coreTests} from "org/mdspex/res/parser/SPEX101_CoreNoExtensionsTests";
+
+
+export public class SPEX101_CoreWithDefaultExtensionsTests extends ResourceBasedTest {
+
+	@Override
+	protected get testResPath(): string {
+		return "SPEX101_core";
+	}
+
+	@Parameters("[{index}] {0}")
+    public static getSomeParameters() {
+        return coreTests.map(s=>[s]);
+    }
+    
+}

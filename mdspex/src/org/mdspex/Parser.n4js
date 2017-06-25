@@ -1,0 +1,201 @@
+import {Block} from "org/mdspex/ASTNodes";
+import {CDATAContainer} from "org/mdspex/ASTNodes";
+import {Document} from "org/mdspex/ASTNodes";
+import {ElementType} from "org/mdspex/ASTNodes";
+import {Category} from "org/mdspex/Category";
+import {DocumentHandler} from "org/mdspex/DefaultExtensions";
+import {ParagraphHandler} from "org/mdspex/DefaultExtensions";
+import {PreformattedHandler} from "org/mdspex/DefaultExtensions";
+import {Extension} from "org/mdspex/Extension";
+import {ExtensionEndMarker} from "org/mdspex/Extension";
+import {InputSource} from "org/mdspex/InputSource";
+import {Lexer} from "org/mdspex/Lexer";
+import {Processor} from "org/mdspex/Processor";
+import {ActiveExtension} from "org/mdspex/ProcessorState";
+import {ProcessorState} from "org/mdspex/ProcessorState";
+import {Token} from "org/mdspex/Token";
+import {N4Injector} from "n4js/lang/N4Injector";
+
+function last(s: string): string {
+	if (s) {
+		return s.charAt(s.length - 1);
+	}
+	return "";
+}
+
+function <T>peek(array: [T]): T {
+	if (array) {
+		return array[array.length - 1];
+	}
+	return undefined;
+}
+
+export public class Parser extends Processor {
+
+	@Inject
+	lexer: Lexer;
+
+	@Inject
+	paragraphHandler: ParagraphHandler;
+
+	@Inject
+	preformattedHandler: PreformattedHandler;
+
+	@Inject
+	documentHandler: DocumentHandler;
+	eolCount: int = 0;
+	
+	@Inject
+	injector: N4Injector;
+	// workaround because @PerInjectionSingleton not implemented!
+	
+		
+	parse(inputSource: InputSource): Document {
+		this.init(this.injector.create(ProcessorState));
+		
+		this.processorState.outputProviders.set(this.paragraphHandler.name, this.paragraphHandler.outputProvider);
+		this.processorState.outputProviders.set(this.preformattedHandler.name, this.preformattedHandler.outputProvider);
+		
+		this.lexer.init(this.processorState);
+		this.processorState.setInputSource(inputSource);
+
+		let tokenEntry: IteratorEntry<Token>;
+		this.createElement(this.documentHandler);
+		let document = this.processorState.activeExtension.element as Document;
+
+		// Init parser
+		this.processorState.indentLevel = 0;
+		this.eolCount = 0;
+
+		// Do parse
+		while (!(tokenEntry = this.lexer.next()).done) {
+			let token = tokenEntry.value;
+			
+			switch (token.category) {
+				case Category.EOL:
+					this.closeWordElement();
+					this.closeLineElement();
+
+					this.eolCount++;
+					if (this.eolCount == 2) { // new paragraph
+						this.popToBlock();
+					}
+					this.processorState.indentLevel = 0;
+					break;
+				case Category.INDENT:
+					this.processorState.indentLevel++;
+					this.eolCount = 0;
+					break;
+				case Category.CMD: case Category.CTRL:
+					let activeExt = token.activeExtension;
+					if (activeExt.element) { // close this element
+						this.closeElement();
+					} else { // create new element
+						if (activeExt.extension.elementType != ElementType.INLINE) {
+							this.popToBlock();
+						} else {
+							this.ensureCDATAContainer();
+						}
+						activeExt.element = activeExt.extension.createElement(this.processorState.createExtensionContext());
+						this.processorState.activeExtensions.push(activeExt);
+					}
+					this.eolCount = 0;
+					break;
+				case Category.SPACE:
+					this.closeWordElement();
+				// and continue:	
+				default:
+					let cdataContainer = this.ensureCDATAContainer();
+					if (this.eolCount == 1 && cdataContainer.element.tailCDATA) {
+						cdataContainer.element.addCDATA(" ");
+					}
+					cdataContainer.element.addCDATA(token.rawValue);
+					this.eolCount = 0;
+			}
+		}
+
+		return document;
+	}
+
+	closeLineElement() {
+		let nested = 0;
+		for (let i = this.processorState.activeExtensions.length - 1; i >= 0; i--) {
+			let ext = this.processorState.activeExtensions[i];
+			switch (ext.extension.elementType) {
+				case ElementType.BLOCK: return;
+			}
+			nested++;
+			if (ext.extension.endMarker == ExtensionEndMarker.EOL) {
+				break;
+			}
+		}
+		for (let i=0; i<nested; i++) {
+			this.closeElement();
+		}
+	}
+	
+	closeWordElement() {
+		let nested = 0;
+		for (let i = this.processorState.activeExtensions.length - 1; i >= 0; i--) {
+			let ext = this.processorState.activeExtensions[i];
+			switch (ext.extension.elementType) {
+				case ElementType.PAR:
+				case ElementType.BLOCK: return;
+			}
+			nested++;
+			if (ext.extension.endMarker == ExtensionEndMarker.SPACE) {
+				break;
+			}
+		}
+		for (let i=0; i<nested; i++) {
+			this.closeElement();
+		}
+	}
+
+	popToBlock(): ActiveExtension<Block> {
+		while (this.processorState.activeExtensions) {
+			let activeExt = peek(this.processorState.activeExtensions);
+			if (activeExt.element instanceof Block && activeExt.element.indentLevel <= this.processorState.indentLevel) {
+				this.processorState.indentLevel = activeExt.element.indentLevel; // TODO ?
+				return activeExt as ActiveExtension<Block>;
+			}
+			activeExt.extension.closeElement(activeExt.element, this.processorState.createExtensionContext());
+			this.processorState.activeExtensions.pop();
+		}
+		throw new Error("Document missing");
+	}
+
+	createElement(extension: Extension) {
+		let element = extension.createElement(this.processorState.createExtensionContext());
+		let activeExt = {
+				extension: extension,
+				element: element
+			};
+		this.processorState.activeExtensions.push(activeExt);
+	}
+
+	closeElement() {
+		let activeElement = this.processorState.activeExtensions.pop();
+		activeElement.extension.closeElement(activeElement.element, this.processorState.createExtensionContext());
+	}
+
+	ensureCDATAContainer(): ActiveExtension<CDATAContainer> {
+		let activeExt = this.processorState.activeExtension;
+		if (!(activeExt.element instanceof CDATAContainer)) {
+			if (this.processorState.indentLevel > activeExt.element.indentLevel) {
+				this.createElement(this.preformattedHandler);
+			} else {
+				this.createElement(this.paragraphHandler);
+			}
+		}
+		return this.processorState.activeExtension as ActiveExtension<CDATAContainer>;
+	}
+
+	private closeInlineElements() {
+		while (this.processorState.activeInlineExtension) {
+			this.closeElement();
+		}
+	}
+
+	
+}

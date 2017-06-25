@@ -1,0 +1,58 @@
+import {Element} from "org/mdspex/ASTNodes";
+import {DefaultOutputProvider} from "org/mdspex/DefaultOutputProvider";
+import {OutputContext} from "org/mdspex/Extension";
+import {HTMLFactory} from "org/mdspex/HTMLFactory";
+import * as HTML from "org/mdspex/HTMLNodes";
+import {Processor} from "org/mdspex/Processor";
+import {ASTSwitch} from "org/mdspex/ASTNodes";
+import {CDATA} from "org/mdspex/ASTNodes";
+import {Document} from "org/mdspex/ASTNodes";
+
+
+export public class OutputProcessor extends Processor implements ASTSwitch<HTML.Node> {
+	
+	@Inject factory: HTMLFactory
+	@Inject defaultProvider: DefaultOutputProvider
+	
+	private context: OutputContext
+	
+	public out(document: Document): HTML.Element {
+		this.context = new OutputContext({
+			 parentHTMLNode: null,
+			 currentElement: document,
+			 factory: this.factory,
+			 processorState: this.processorState
+		});
+		return this.processTree() as HTML.Element;
+	}
+	
+	private processTree(): HTML.Node {
+		let htmlNode = this.switch(this.context.currentElement); 
+		if (htmlNode) {
+			if (this.context.parentHTMLNode) {
+				this.context.parentHTMLNode.appendChild(htmlNode);
+			}
+			if ( this.context.currentElement.nodes) {
+				for (this.context.currentElement of this.context.currentElement.nodes) {
+					this.context.parentHTMLNode = htmlNode;
+					this.processTree();
+				}
+			}
+		}
+		return htmlNode;
+	}
+	
+	@Override
+	protected caseElement(node: Element): HTML.Element {
+		let provider = this.processorState.outputProviders.get(node.name) || this.defaultProvider;
+		return provider.process(this.context);
+	}
+	
+	@Override
+	protected caseCDATA(node: CDATA): HTML.Node {
+		let text = this.factory.createText();
+		text.appendData(node.content);
+		return text;
+	}
+}
+

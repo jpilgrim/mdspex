@@ -1,0 +1,17 @@
+import {N4Injector} from "n4js/lang/N4Injector";
+import {DefaultExtensionBinder} from "org/mdspex/DefaultExtensionBinder";
+import {IResourceBasedTest} from "org/mdspex/ResourceBasedTest";
+
+
+@GenerateInjector()
+@UseBinder(DefaultExtensionBinder)
+export public class DebugMeTest implements IResourceBasedTest {
+
+	@Override
+	name = "debug";
+
+	@Inject
+	@Override
+	injector: N4Injector;
+
+}

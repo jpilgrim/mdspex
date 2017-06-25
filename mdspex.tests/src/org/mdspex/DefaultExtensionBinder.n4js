@@ -1,0 +1,16 @@
+import {DefaultProcessorState} from "org/mdspex/ProcessorState";
+import {ProcessorState} from "org/mdspex/ProcessorState";
+import {HTMLFactory} from "org/mdspex/HTMLFactory";
+import {VFactory} from "org/mdspex/VNodes";
+
+@Binder
+@Bind(ProcessorState, ProcessorState)
+@Bind(HTMLFactory, VFactory)
+export public class NoExtensionBinder {}
+
+
+@Binder
+@Bind(ProcessorState, DefaultProcessorState)
+@Bind(HTMLFactory, VFactory)
+export public class DefaultExtensionBinder {}
+

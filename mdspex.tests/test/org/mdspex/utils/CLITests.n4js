@@ -1,0 +1,136 @@
+import {Assert} from "n4/mangel/assert/Assert";
+import {ArgType} from "org/mdspex/CLI";
+import {CLI} from "org/mdspex/CLI";
+export public class CLITests {
+	
+	@Test
+	testArgTypeByValue() {
+		Assert.deepEqual(CLI.argTypeByValue(""), {argType: ArgType.STRING, max: 1});
+		Assert.deepEqual(CLI.argTypeByValue("Hello"), {argType: ArgType.STRING, max: 1});
+		Assert.deepEqual(CLI.argTypeByValue(0), {argType: ArgType.NUMBER, max: 1});
+		Assert.deepEqual(CLI.argTypeByValue(42), {argType: ArgType.NUMBER, max: 1});
+		Assert.deepEqual(CLI.argTypeByValue(true), {argType: ArgType.FLAG, max: 1});
+		Assert.deepEqual(CLI.argTypeByValue(false), {argType: ArgType.FLAG, max: 1});
+	}
+
+	@Test
+	testArgTypeByValueArray() {
+		Assert.deepEqual(CLI.argTypeByValue([""]), {argType: ArgType.STRING, max: -1});
+		Assert.deepEqual(CLI.argTypeByValue(["Hello"]), {argType: ArgType.STRING, max: -1});
+		Assert.deepEqual(CLI.argTypeByValue([0]), {argType: ArgType.NUMBER, max: -1});
+		Assert.deepEqual(CLI.argTypeByValue([42]), {argType: ArgType.NUMBER, max: -1});
+		Assert.deepEqual(CLI.argTypeByValue([true]), {argType: ArgType.FLAG, max: -1});
+		Assert.deepEqual(CLI.argTypeByValue([false]), {argType: ArgType.FLAG, max: -1});
+	}
+
+	@Test
+	testEmpty() {
+		let cli = new CLI();
+		let obj = cli.parseArgs([], 0);
+		
+		Assert.deepEqual(obj, {});
+	}
+
+	@Test
+	testHelp() {
+		let cli = new CLI();
+		cli.setHelp();
+		let obj = cli.parseArgs([], 0);
+		
+		Assert.deepEqual(obj, {});
+	}
+
+	@Test
+	testOpt() {
+		let cli = new CLI();
+		cli.opt("opt", "optValue");
+		let obj = cli.parseArgs([], 0);
+		
+		Assert.deepEqual(obj, { opt: "optValue"}, cli.help());
+	}
+	
+	@Test
+	testOptSet() {
+		let cli = new CLI();
+		cli.opt("opt", "optValue");
+		let obj = cli.parseArgs(["--opt", "hello"], 0);
+		
+		Assert.deepEqual(obj, { opt: "hello"}, cli.help());
+	}
+	
+	@Test
+	testReq() {
+		let cli = new CLI();
+		cli.req("req", ArgType.STRING);
+		let obj = cli.parseArgs([], 0);
+		
+		Assert.isUndefined(obj);
+	}
+	
+	@Test
+	testReqSet() {
+		let cli = new CLI();
+		cli.req("req", ArgType.STRING);
+		let obj = cli.parseArgs(["--req", "reqValue"], 0);
+		
+		Assert.deepEqual(obj, { req: "reqValue"}, cli.help());
+	}
+	
+	@Test
+	testIndexed() {
+		let cli = new CLI();
+		cli.indexed("ind", ArgType.STRING, 1, "", true);
+		let obj = cli.parseArgs([], 0);
+		
+		Assert.isUndefined(obj);
+	}
+
+	@Test
+	testIndexedSet() {
+		let cli = new CLI();
+		cli.indexed("ind", ArgType.STRING, 1, "", true);
+		let obj = cli.parseArgs(["Hello"], 0);
+		
+		Assert.deepEqual(obj, { ind: "Hello"}, cli.help());
+	}
+	
+	@Test
+	testVararg() {
+		let cli = new CLI();
+		cli.varargs("vararg", ArgType.STRING, 1);
+		
+		let ad = cli.argDefs[0];
+		Assert.isTrue(ad.isVarArg);
+		
+		let obj = cli.parseArgs([], 0);
+		
+		Assert.deepEqual(obj, { vararg: []}, cli.help());
+	}
+
+	@Test
+	testVarargSet() {
+		let cli = new CLI();
+		cli.varargs("vararg", ArgType.STRING, 1);
+		let obj = cli.parseArgs(["Hello", "World"], 0);
+		
+		Assert.deepEqual(obj, { vararg: ["Hello", "World"]}, cli.help());
+	}
+
+	@Test
+	testCombined() {
+		let cli = new CLI();
+		cli.setHelp();
+		cli.opt("verbose", false);
+		cli.req("depth", ArgType.NUMBER);
+		cli.indexed("input", ArgType.STRING, 1);
+		cli.indexed("output", ArgType.STRING, 2);
+		cli.varargs("defs", ArgType.STRING, 3);
+		
+		let obj = cli.parseArgs(["--depth", "1", "in", "out", "more"], 0);
+		
+		Assert.deepEqual(obj, 
+			{ verbose: false, depth: 1, input:"in", output: "out", defs: ["more"]}, cli.help()
+		);
+	}
+
+}
