@@ -1,4 +1,4 @@
-[#] title
+#
 
 - [ ] Spec updates:
 	* ...
@@ -7,7 +7,7 @@
 - [ ] Test updates:
 	* ...
 - [ ] Releng updates:
-	* ...	
+	* ...
 
 Also-by: Some Otherperson <otherperson@someplace.net>
 Signed-off-by: Joe Somebody <somebody@someplace.net>
