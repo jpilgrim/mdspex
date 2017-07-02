@@ -1,3 +1,5 @@
+import {ContainedFQID} from "org/mdspex/IDs";
+
 
 export public function is(node: Node, name: string): boolean {
 	if (node instanceof Element) return (node as Element).name == name;
@@ -100,6 +102,7 @@ export public abstract class Node {
 		} else {
 			parent.nodes.push(this);
 		}
+		
 	}
 
 	/**
@@ -114,20 +117,56 @@ const TAB = "    ";
 
 export public abstract class Element extends Node {
 
+	/**
+	 * Name of the element, e.g. "<br />" woud have the name "br". This is not
+	 * the attribute "name".
+	 */
 	@Final
 	name: string;
 
 	@Final
 	indentLevel: int;
 
+	/**
+	 * ID of the element, this is used for linking and is often translated to the attribute
+	 * "id".
+	 */
+	@Final
 	id: string;
+	@Final
+	idtype: string;
+	@Final
+	public idscope: Element;
+	@Final
+	public definesIdScope: boolean
+
 	attributes: [Attribute];
 	nodes: [Node];
 
-	constructor(name: string, indentLevel: int, parent: Element) {
+	constructor(name: string, indentLevel: int, parent: Element, idtype: string= undefined, id: string =undefined, definesIdScope = false) {
 		super(parent);
 		this.name = name;
 		this.indentLevel = indentLevel;
+		this.id = id;
+		this.idtype = idtype;
+		let p = parent;
+		while (p && ! p.definesIdScope) p=p.parent; 
+		this.idscope = p;
+		this.definesIdScope = definesIdScope;
+	}
+	
+	get fqid(): ContainedFQID {
+		
+		if (this.id) { 
+			let scopesFQID: ContainedFQID = undefined;
+			let scope = this.idscope; 
+			while (scope && !scopesFQID) {
+				scopesFQID = scope.fqid;
+				scope = scope.parent;
+			}
+			return new ContainedFQID(this.idtype, this.id, scopesFQID)
+		}
+		return undefined;
 	}
 
 	@Override
@@ -304,7 +343,7 @@ export public class Document extends Block {
 	indexes: Map<string, [Element]>;
 
 	constructor() {
-		super("spex", 0, undefined);
+		super("spex", 0, undefined, undefined);
 	}
 
 	public stringify(offsets=false, ids=false): string {

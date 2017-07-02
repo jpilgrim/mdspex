@@ -1,0 +1,138 @@
+
+
+export public interface PQID {
+	public get type(): string|undefined
+	public get lastSegment(): string;
+	public get segments(): Iterable<string>
+	public get reversedSegments(): Iterable<string>
+	public get isPartial(): boolean;
+	public get isFull(): boolean;
+}
+
+export public interface FQID extends PQID {
+	@Override
+	public get type(): string
+	
+	@Override
+	public get isPartial(): boolean {
+		return false;
+	}
+	@Override
+	public get isFull(): boolean {
+		return true;
+	}
+}
+
+
+export public class ContainedFQID implements FQID {
+	@Override
+	@Final
+	public type: string;
+	
+	@Final
+	@Override
+	public lastSegment: string;
+	
+	@Final
+	parent: ContainedFQID;
+	
+	constructor(type: string, lastSegment: string, parent: ContainedFQID=undefined) {
+		this.type = type;
+		this.lastSegment = lastSegment;
+		this.parent = parent;
+	}
+	
+	@Override
+	public get segments(): Iterable<string> {
+		return new SegmentIterable(this);
+	}
+	
+	@Override
+	public get reversedSegments(): Iterable<string> {
+		return new ReversedSegmentIterable(this);
+	}
+
+	@Override
+	public toString(): string {
+		let res = this.type ? this.type + ":" : "";
+		let b = false;
+		for (let s of this.segments) {
+			if (b) res += "."; else b=true;
+			res += s;
+		}
+		return res;
+	}
+}
+
+class ReversedSegmentIterable implements Iterable<string> {
+	
+	@Final private start: ContainedFQID;
+	
+	constructor(start: ContainedFQID) {
+		this.start = start;
+	}
+	
+	@Override
+	public [Symbol.iterator](): Iterator<string> {
+		return new ReversedSegmentIterator(this.start);
+	}
+}
+
+class ReversedSegmentIterator implements Iterator<string> {
+	
+	private current: ContainedFQID;
+	
+	constructor(current: ContainedFQID) {
+		this.current = current;
+	}
+	
+	@Override
+	public next(): IteratorEntry<string> {
+		if (!this.current) {
+			return { done: true };
+		} else {
+			let entry = { done: false, value: this.current.lastSegment };
+			this.current = this.current.parent;
+			return entry;
+		}
+	}
+}
+
+class SegmentIterable implements Iterable<string> {
+	
+	@Final private start: ContainedFQID;
+	
+	constructor(start: ContainedFQID) {
+		this.start = start;
+	}
+	
+	@Override
+	public [Symbol.iterator](): Iterator<string> {
+		return new SegmentIterator(this.start);
+	}
+}
+
+class SegmentIterator implements Iterator<string> {
+	
+	@Final
+	segments: [ContainedFQID] = []
+	index = 0;
+	
+	constructor(last: ContainedFQID) {
+		let p = last;
+		do {
+			this.segments.push(p);
+			p = p.parent;
+		} while (p);
+		this.index = this.segments.length-1;
+	}
+	
+	@Override
+	public next(): IteratorEntry<string> {
+		if (this.index<0) {
+			return { done: true }
+		} else {
+			return { done: false, value: this.segments[this.index--].lastSegment }
+		}
+	}
+}

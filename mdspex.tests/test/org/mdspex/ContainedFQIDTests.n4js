@@ -1,0 +1,116 @@
+import {ContainedFQID} from "org/mdspex/IDs";
+import {Assert} from "n4/mangel/assert/Assert";
+
+export public class ContainedFQIDTests {
+
+	@Test
+	public fields() {
+		let fqid = new ContainedFQID("t", "x");
+
+		Assert.equal(fqid.type, "t");
+		Assert.equal(fqid.lastSegment, "x");
+		Assert.isTrue(fqid.isFull)
+		Assert.isFalse(fqid.isPartial)
+	}
+
+	@Test
+	public segmentsSingleton() {
+		let fqid = new ContainedFQID("t", "x");
+		let i = 0;
+		for (let s of fqid.segments) {
+			Assert.equal(s, "x");
+			Assert.lessThan(i, 1);
+			i++;
+		}
+	}
+
+	@Test
+	public reversedSegmentsSingleton() {
+		let fqid = new ContainedFQID("t", "x");
+		let i = 0;
+		for (let s of fqid.reversedSegments) {
+			Assert.equal(s, "x");
+			Assert.lessThan(i, 1);
+			i++;
+		}
+	}
+
+	@Test
+	public segments() {
+		let fqid = new ContainedFQID("t", "x", new ContainedFQID("t", "y", new ContainedFQID("t", "z")));
+		let segs = ["z", "y", "x" ];
+		let i = 0;
+		for (let s of fqid.segments) {
+			Assert.isTrue(i<segs.length);
+			Assert.equal(s, segs[i]);
+			i++;
+		}
+		Assert.equal(i, segs.length);
+	}
+
+	@Test
+	public reversedSegments() {
+		let fqid = new ContainedFQID("t", "x", new ContainedFQID("t", "y", new ContainedFQID("t", "z")));
+		let segs = ["x", "y", "z" ];
+		let i = 0;
+		for (let s of fqid.reversedSegments) {
+			Assert.isTrue(i<segs.length);
+			Assert.equal(s, segs[i]);
+			i++;
+		}
+		Assert.equal(i, segs.length);
+	}
+	
+	@Test
+	public manySegments() {
+		
+		let start = Date.now();
+		
+		let max = 100000;
+		let fqid: ContainedFQID = undefined;
+		for (let i=0; i<max; i++) {
+			fqid = new ContainedFQID("t", "x"+i, fqid);
+		}
+		let i = 0;
+		for (let s of fqid.segments) {
+			Assert.lessThan(i, max);
+			Assert.equal(s, "x"+ i);
+			i++;
+		}
+		
+		let end = Date.now();
+		Assert.lessThan(end-start, 1500); // 170 ms on MacBook Pro
+		
+		
+	}
+	@Test
+	public manyReversedSegments() {
+		let start = Date.now();
+		
+		let max = 100000;
+		let fqid: ContainedFQID = undefined;
+		for (let i=0; i<max; i++) {
+			fqid = new ContainedFQID("t", "x"+i, fqid);
+		}
+		let i = max-1;
+		for (let s of fqid.reversedSegments) {
+			Assert.greaterThanOrEqual(i, 0);
+			Assert.equal(s, "x"+ i);
+			i--;
+		}
+		
+		let end = Date.now();
+		Assert.lessThan(end-start, 1000); // 120 ms on MacBook Pro
+	}
+	
+	@Test
+	public testToString() {
+		let fqid = new ContainedFQID("t1", "x", new ContainedFQID("t2", "y", new ContainedFQID("t3", "z")));
+		Assert.equal(fqid.toString(), "t1:z.y.x");	
+		Assert.equal(fqid.parent.toString(), "t2:z.y");	
+		Assert.equal(fqid.parent.parent.toString(), "t3:z");	
+	}
+	
+	
+
+}
