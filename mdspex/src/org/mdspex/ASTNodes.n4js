@@ -152,7 +152,7 @@ export public abstract class Element extends Node {
 		let p = parent;
 		while (p && ! p.definesIdScope) p=p.parent; 
 		this.idscope = p;
-		this.definesIdScope = definesIdScope;
+		this.definesIdScope = id? definesIdScope : false;
 	}
 	
 	get fqid(): ContainedFQID {
