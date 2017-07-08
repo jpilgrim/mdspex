@@ -1,0 +1,25 @@
+import {LinkFQID} from "org/mdspex/IDs";
+import {Assert} from "n4/mangel/assert/Assert";
+
+export public class LinkFQIDTests {
+
+	@Test
+	test() {
+		let fqid = new LinkFQID("type", ["id"]);
+		Assert.equal(fqid.type, "type");
+		Assert.equal(fqid.lastSegment, "id");
+		Assert.equal(fqid.toString(), "type:id");
+		
+		for (let s of fqid.segments) {
+			Assert.equal(s, "id");
+		}
+		for (let s of fqid.reversedSegments) {
+			Assert.equal(s, "id");
+		}
+		for (let s of fqid.reversedSegmentsWithoutLast) {
+			Assert.fail("should not be called, s is " + s);
+		}
+		
+	}
+
+}

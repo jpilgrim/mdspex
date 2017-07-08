@@ -1,0 +1,82 @@
+import {Element} from "org/mdspex/ASTNodes";
+import {normalizeSegment} from "org/mdspex/ASTNodes";
+import {ContainedFQID} from "org/mdspex/IDs";
+import {Anchor} from "org/mdspex/MDSpexIndex";
+import {IDScope} from "org/mdspex/MDSpexIndex";
+/**
+ * Holds all information about ID and scopes of elements.
+ */
+export public class ElementAnchor implements Anchor {
+
+	/**
+	 * The qualified element.
+	 */
+	@Final
+	public element: Element;
+
+	/**
+	 * ID of the element, this is used for linking and is usually translated to the attribute
+	 * "id". This id is normalized, i.e. special characters are replaced with underscores.
+	 */
+	@Final
+	@Override
+	public id: string;
+
+	/**
+	 * The type of the id, cf. PQID for details.
+	 */
+	@Final
+	@Override
+	public type: string;
+
+	@CovariantConstructor
+	constructor(@Spec spec: ~i~this) {
+		this.id = normalizeSegment(spec.id);
+	}
+
+	/**
+	 * Returns either the scope defined by this anchor, or
+	 * the next parent scope.
+	 */
+	public get idscope(): ElementAnchorWithScope {
+		let e = this.element;
+		do {
+			if (e.anchor instanceof ElementAnchorWithScope) {
+				return e.anchor as ElementAnchorWithScope;
+			}
+			e = e.parent;
+		} while (e);
+		return undefined;
+	}
+	
+	/**
+	 * Returns the parent scope, maybe similar to idscope if the anchor
+	 * does not define a scope itself.
+	 */
+	public get parentScope(): ElementAnchorWithScope {
+		let e = this.element.parent;
+		while (e) {
+			if (e.anchor instanceof ElementAnchorWithScope) {
+				return e.anchor as ElementAnchorWithScope;
+			}
+			e = e.parent;
+		}
+		while (e);
+		return undefined;
+	}
+
+	@Override
+	public get fqid(): ContainedFQID {
+		let parentScope = this.parentScope;
+		return new ContainedFQID(this.type, this.id, parentScope?parentScope.fqid:undefined);
+	}
+}
+
+export class ElementAnchorWithScope extends ElementAnchor implements IDScope {
+
+	@Override
+	@Final
+	public scopedAnchors: [ElementAnchor] = [];
+
+	
+}

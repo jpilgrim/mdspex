@@ -9,6 +9,7 @@ import {IProcessorState} from "org/mdspex/ProcessorState";
 import {CharacterToken} from "org/mdspex/Token";
 import {Token} from "org/mdspex/Token";
 import {Node} from "org/mdspex/ASTNodes";
+import {Link} from "org/mdspex/ASTNodes";
 
 export public class OutputContext {
 
@@ -22,6 +23,16 @@ export public class OutputContext {
 	@Final
 	public processorState: IProcessorState;
 
+	constructor(@Spec spec: ~i~this) {}
+}
+
+export public class LinkContext {
+	@Final
+	public link: Link;
+	
+	@Final
+	public processorState: IProcessorState;
+	
 	constructor(@Spec spec: ~i~this) {}
 }
 
@@ -88,6 +99,11 @@ export public class ExtensionContext {
 		return undefined;
 	}
 }
+
+export public interface ~LinkProvider {
+	createElement(context: LinkContext)
+}
+
 
 export public interface ~ElementProvider {
 	/**

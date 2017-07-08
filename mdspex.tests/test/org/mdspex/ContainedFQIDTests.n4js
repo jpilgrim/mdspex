@@ -9,8 +9,8 @@ export public class ContainedFQIDTests {
 
 		Assert.equal(fqid.type, "t");
 		Assert.equal(fqid.lastSegment, "x");
-		Assert.isTrue(fqid.isFull)
-		Assert.isFalse(fqid.isPartial)
+		Assert.isTrue(fqid.isFull);
+		Assert.isFalse(fqid.isPartial);
 	}
 
 	@Test
@@ -41,7 +41,7 @@ export public class ContainedFQIDTests {
 		let segs = ["z", "y", "x" ];
 		let i = 0;
 		for (let s of fqid.segments) {
-			Assert.isTrue(i<segs.length);
+			Assert.isTrue(i < segs.length);
 			Assert.equal(s, segs[i]);
 			i++;
 		}
@@ -54,63 +54,63 @@ export public class ContainedFQIDTests {
 		let segs = ["x", "y", "z" ];
 		let i = 0;
 		for (let s of fqid.reversedSegments) {
-			Assert.isTrue(i<segs.length);
+			Assert.isTrue(i < segs.length);
 			Assert.equal(s, segs[i]);
 			i++;
 		}
 		Assert.equal(i, segs.length);
 	}
-	
+
 	@Test
 	public manySegments() {
-		
+
 		let start = Date.now();
-		
+
 		let max = 100000;
 		let fqid: ContainedFQID = undefined;
-		for (let i=0; i<max; i++) {
-			fqid = new ContainedFQID("t", "x"+i, fqid);
+		for (let i = 0; i < max; i++) {
+			fqid = new ContainedFQID("t", "x" + i, fqid);
 		}
 		let i = 0;
 		for (let s of fqid.segments) {
 			Assert.lessThan(i, max);
-			Assert.equal(s, "x"+ i);
+			Assert.equal(s, "x" + i);
 			i++;
 		}
-		
+
 		let end = Date.now();
-		Assert.lessThan(end-start, 1500); // 170 ms on MacBook Pro
-		
-		
+		Assert.lessThan(end - start, 1500); // 170 ms on MacBook Pro
+
 	}
+
 	@Test
 	public manyReversedSegments() {
 		let start = Date.now();
-		
+
 		let max = 100000;
 		let fqid: ContainedFQID = undefined;
-		for (let i=0; i<max; i++) {
-			fqid = new ContainedFQID("t", "x"+i, fqid);
+		for (let i = 0; i < max; i++) {
+			fqid = new ContainedFQID("t", "x" + i, fqid);
 		}
-		let i = max-1;
+		let i = max - 1;
 		for (let s of fqid.reversedSegments) {
 			Assert.greaterThanOrEqual(i, 0);
-			Assert.equal(s, "x"+ i);
+			Assert.equal(s, "x" + i);
 			i--;
 		}
-		
+
 		let end = Date.now();
-		Assert.lessThan(end-start, 1000); // 120 ms on MacBook Pro
+		Assert.lessThan(end - start, 1000); // 120 ms on MacBook Pro
 	}
-	
+
 	@Test
 	public testToString() {
 		let fqid = new ContainedFQID("t1", "x", new ContainedFQID("t2", "y", new ContainedFQID("t3", "z")));
-		Assert.equal(fqid.toString(), "t1:z.y.x");	
-		Assert.equal(fqid.parent.toString(), "t2:z.y");	
-		Assert.equal(fqid.parent.parent.toString(), "t3:z");	
+		Assert.equal(fqid.toString(), "t1:z.y.x");
+		Assert.equal(fqid.parent.toString(), "t2:z.y");
+		Assert.equal(fqid.parent.parent.toString(), "t3:z");
 	}
-	
+
 	
 
 }

@@ -1,0 +1,183 @@
+import {FQID} from "org/mdspex/IDs";
+import {PQID} from "org/mdspex/IDs";
+import {Anchor} from "org/mdspex/MDSpexIndex";
+import {MDSpexIndex} from "org/mdspex/MDSpexIndex";
+import {Assert} from "n4/mangel/assert/Assert";
+import {SegmentMap} from "org/mdspex/MDSpexIndex";
+
+function ta(fqid: string): Anchor {
+	return new TestAnchor(fqid);
+}
+
+class TestAnchor implements Anchor {
+
+	@Override
+	@Final
+	public fqid: FQID;
+	constructor(fqid: string) {
+		this.fqid = FQID.parseString(fqid);
+	}
+
+	@Override
+	public get type(): string {
+		return this.fqid.type;
+	}
+
+	@Override
+	public get id(): string {
+		return this.fqid.lastSegment;
+	}
+}
+
+export public class TestAnchorTest {
+
+	@Test
+	test() {
+		let a = ta("sec:My.Main.Header");
+		Assert.equal(a.id, "Header");
+		Assert.equal(a.type, "sec");
+		Assert.equal(a.fqid.toString(), "sec:My.Main.Header");
+	}
+}
+
+export public class SegmentMapTests {
+
+	@Test
+	test() {
+		let segmap = new SegmentMap();
+		let parent = segmap.getOrCreateParent("id");
+		Assert.isNotNullOrUndefined(parent);
+		Assert.equal(segmap.getOrCreateParent("id"), parent);
+	}
+
+}
+
+export public class MDSpexIndexBasicTests {
+
+	@Test
+	testSingleExactly() {
+		let index = new MDSpexIndex();
+		let a = ta("sec:My.Main.Header");
+		index.add(a);
+		Assert.equal(index.find(PQID.parseString("sec:My.Main.Header"))[0], a);
+		Assert.equal(index.find(PQID.parseString("sec:My.Main.HeaderX")).length, 0);
+		Assert.equal(index.find(PQID.parseString("eq:My.Main.HeaderX")).length, 0);
+		Assert.equal(index.find(PQID.parseString("sec:My.Main.Header.Sub")).length, 0);
+	}
+}
+
+export public class MDSpexIndexTests {
+	index = new MDSpexIndex();
+	a = ta("sec:My.Main.Header");
+	b = ta("eq:Something.Very.Different");
+
+	constructor() {
+		this.index.add(this.a);
+		this.index.add(this.b);
+	}
+
+	assertFind(pqidString: string, expect=this.a) {
+		let pqid = PQID.parseString(pqidString);
+		let re = this.index.find(pqid);
+		Assert.equal(re.length, 1, "find(" + pqid + ") returned " + re.length + " hits, expected 1.");
+		Assert.equal(re[0], expect, "wrong entry found for " + pqid);
+	}
+
+	assertFindNot(pqidString: string) {
+		let pqid = PQID.parseString(pqidString);
+		let re = this.index.find(pqid);
+		Assert.equal(re.length, 0, "find('" + pqid + "') returned " + re.length + " hits, expected no hits.");
+	}
+
+	@Test
+	testSingleExactly() {
+		this.assertFind("sec:My.Main.Header");
+		this.assertFind("eq:Something.Very.Different", this.b);
+		this.assertFindNot("sec:My.Main.HeaderX");
+		this.assertFindNot("eq:My.Main.Header");
+		this.assertFindNot("sec:My.Main.Header.Sub");
+	}
+
+	@Test
+	testSingleFuzzy() {
+		this.assertFind("sec:My.Main.Header");
+		this.assertFind("My.Main.Header");
+		this.assertFind("sec:Main.Header");
+		this.assertFind("sec:Header");
+		this.assertFind("Header");
+		this.assertFindNot("sec:My.Main");
+	}
+
+	@Test
+	testSingleFuzzyWildcard() {
+		this.assertFind("H…");
+		this.assertFind("sec:…Header");
+		this.assertFind("sec:My.M….Header");
+		this.assertFind("sec:M….Header");
+		this.assertFindNot("sec:My.Main.H….Sub");
+		this.assertFind("sec:My.….Header");
+		this.assertFind("sec:M….H…a…r");
+	}
+
+}
+
+export public class MDSpexPerformanceTests {
+	index = new MDSpexIndex();
+	count = 0;
+
+	assertFind(pqidString: string) {
+		let pqid = PQID.parseString(pqidString);
+		let re = this.index.find(pqid);
+		Assert.equal(re.length, 1, "find(" + pqid + ") returned " + re.length + " hits, expected 1.");
+	}
+	
+	add(fqidString: string) {
+		this.index.add(ta(fqidString));
+		this.count++;
+	}
+
+	/**
+	 *  Chapters, Sec1 , Sec2, Sec3, Req = 111.110
+	 */
+	@Test
+	test_100k_entries_with_one_wildcard() {
+		const NUM = 10;
+		this.count = 0;	
+		for (let c = 1; c <= NUM; c++) {
+			this.add("chapter:Chapter_" + c);
+			for (let sec1 = 1; sec1 <= NUM; sec1++) {
+				this.add("sec:Chapter_" + c + ".Section_+" + sec1);
+				for (let sec2 = 1; sec2 <= NUM; sec2++) {
+					this.add("sec:Chapter_" + c + ".Section_+" + sec1 + ".Subsection_" + sec2);
+					for (let sec3 = 1; sec3 <= NUM; sec3++) {
+						this.add("sec:Chapter_" + c + ".Section_+" + sec1 + ".Subsection_" + sec2 +
+							".Subsubsection_" + sec3);
+						for (let req = 1; req <= NUM; req++) {
+							this.add("sec:Chapter_" + c + ".Section_+" + sec1 + ".Subsection_" + sec2 +
+								".Subsubsection_" + sec3 + ".Requirement_" + req);
+						}
+					}
+				}
+			}
+		}
+		for (let c = 1; c <= NUM; c++) {
+			this.assertFind("chapter:Chapter_" + c);
+			for (let sec1 = 1; sec1 <= NUM; sec1++) {
+				this.assertFind("sec:Chapter_" + c + ".Section_+" + sec1);
+				for (let sec2 = 1; sec2 <= NUM; sec2++) {
+					this.assertFind("sec:Chapter_" + c + ".Section_+" + sec1 + ".Subsection_" + sec2);
+					for (let sec3 = 1; sec3 <= NUM; sec3++) {
+						this.assertFind("sec:Chapter_" + c + ".Section_+" + sec1 + ".Subsection_" + sec2 +
+							".Subsub…" + sec3);
+						for (let req = 1; req <= NUM; req++) {
+							this.assertFind("sec:Chapter_" + c + ".Section_+" + sec1 + ".Subsection_" + sec2 +
+								".Subsubsection_" + sec3 + ".Requirement_" + req);
+						}
+					}
+				}
+			}
+		}
+		// console.log("Count: " + this.count);		
+	}
+}
+

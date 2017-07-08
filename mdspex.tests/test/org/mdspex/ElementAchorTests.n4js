@@ -1,0 +1,29 @@
+import {Block} from "org/mdspex/ASTNodes";
+import {Assert} from "n4/mangel/assert/Assert";
+import {Document} from "org/mdspex/ASTNodes";
+
+const doc = new Document();
+
+export public class ElementAchorTests {
+
+	@Test
+	public testAnchorFQID_Simple() {
+		let b = new Block("e", 0, doc, "type", "id");
+		Assert.equal(b.anchor.type, "type");
+		Assert.equal(b.anchor.id, "id");
+		Assert.equal(b.anchor.fqid.toString(), "type:id");
+	}
+
+	@Test
+	public testAnchorFQID_Norm1() {
+		let b = new Block("e", 0, doc, "type", " id ");
+		Assert.equal(b.anchor.fqid.toString(), "type:id");
+	}
+
+	@Test
+	public testAnchorFQID_Norm2() {
+		let b = new Block("e", 0, doc, "type", "..i!!d??");
+		Assert.equal(b.anchor.fqid.toString(), "type:i_d");
+	}
+
+}

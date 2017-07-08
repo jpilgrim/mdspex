@@ -1,17 +1,53 @@
+
+export public function matchSegment(segment: string, segPattern: string): boolean {
+	if (segPattern.indexOf("…")>=0) {
+		let regex = segPattern.replace(/([.+?\[\]()$^])/g, "\\$1").replace(/…/g, ".*");
+		return new RegExp("^" + regex + "$", "g").test(segment);
+	} else {
+		return segment==segPattern;
+	}
+}
+
+
 /**
  * Qualified id is the base classifier for
  * partially qualified ids (PQID) and fully qualified ids (FQID).
- * 
+ *
  * We use the term id here rather than name since for linking purposes
  * the attribute "id" of element is being used. 
  */
 export public interface QID {
+	
+	public static containsWildcard(segment: string): boolean {
+		if (segment && segment.indexOf("…")>=0) {
+			return true;
+		}
+		return false;
+	}
+	
 	public get type(): string | undefined
 	public get lastSegment(): string;
 	public get segments(): Iterable<string>
 	public get reversedSegments(): Iterable<string>
+	public get reversedSegmentsWithoutLast(): Iterable<string>
 	public get isPartial(): boolean;
 	public get isFull(): boolean;
+
+	/**
+	 * toString would not be mixed in since inherited
+	 * methods have precedence over default methods and
+	 * toString is defined in Object, i.e. is inherited
+	 * by every class.
+	 */
+	asString(): string {
+		let s: string;
+		for (let seg of this.segments) {
+			if (s) s += "." + seg; else s = seg;
+		}
+		return (this.type) ? this.type + ":" + s : s;
+	}
+
+
 }
 
 /**
@@ -20,7 +56,24 @@ export public interface QID {
  * segments may be only a suffix (i.e., some segments 0..k may be
  * omitted). 
  */
-export public class PQID implements QID {
+export public abstract class DefaultQID implements QID {
+
+	protected static <T extends DefaultQID> parseStringUsigCtor(ctor: constructor{T}, qid: string): T {
+		let typeSegments = qid.split(":");
+		if (typeSegments.length==0 || typeSegments.length>2) {
+			throw new Error("Cannot parse QID: " + qid);
+		}
+		let type = typeSegments.length>1 ? typeSegments[0] : undefined;
+		let segmentIndex = typeSegments.length>1 ? 1 : 0;
+		let sep = typeSegments[segmentIndex].indexOf("/") > 0 ? "/" : ".";
+		let segments = typeSegments[segmentIndex].split(sep);
+		try {
+			return new ctor(type, segments);
+		} catch(e) {
+			throw new Error("Error parsing '"+qid+"':" + e);
+		}
+	}
+
 
 	@Override
 	@Final
@@ -28,7 +81,12 @@ export public class PQID implements QID {
 
 	@Final
 	_segments: [string];
+	
+	@CovariantConstructor
 	constructor(type: string, segments: [string]) {
+		if (!segments || segments.length==0) {
+			throw new Error("QID requires at least one segment")
+		}
 		this.type = type;
 		this._segments = segments;
 	}
@@ -47,7 +105,26 @@ export public class PQID implements QID {
 	public get reversedSegments(): Iterable<string> {
 		return new ReversedArrayIterable(this);
 	}
+	
+	@Override
+	public get reversedSegmentsWithoutLast(): Iterable<string> {
+		return new ReversedArrayIterable(this, 1);
+	}
+	
+	@Override
+	public toString(): string { return this.asString(); }
+	
+}
 
+/**
+ * Partially qualified ids, used for referencing an element.
+ * Type is not required, compared to fully qualified id (FQN) the
+ * segments may be only a suffix (i.e., some segments 0..k may be
+ * omitted). 
+ * The segments of the PQID may contain ellipses.
+ */
+export public class PQID extends DefaultQID {
+	
 	@Override
 	public get isPartial(): boolean {
 		return true;
@@ -57,20 +134,30 @@ export public class PQID implements QID {
 	public get isFull(): boolean {
 		return false;
 	}
+	
+	/**
+	 * Creates an PQID from a given string.
+	 */
+	public static parseString(pqid: string): PQID {
+		return DefaultQID.parseStringUsigCtor(PQID, pqid);
+	}
 }
 
 class ArrayIterable implements Iterable<string> {
 
 	@Final
-	protected pqid: PQID;
+	protected qid: DefaultQID;
+	@Final
+	protected offset: int; 
 
-	constructor(pqid: PQID) {
-		this.pqid = pqid;
+	constructor(qid: DefaultQID, offset = 0) {
+		this.qid = qid;
+		this.offset = offset;
 	}
 
 	@Override
 	public [Symbol.iterator](): Iterator<string> {
-		return new ArrayIterator(this.pqid);
+		return new ArrayIterator(this.qid, this.offset);
 	}
 }
 
@@ -78,36 +165,36 @@ class ReversedArrayIterable extends ArrayIterable {
 
 	@Override
 	public [Symbol.iterator](): Iterator<string> {
-		return new ReversedArrayIterator(this.pqid);
+		return new ReversedArrayIterator(this.qid, this.offset);
 	}
 }
 
 class ArrayIterator implements Iterator<string> {
 
 	@Final
-	protected pqid: PQID;
+	protected qid: DefaultQID;
 	protected index: int;
 
-	constructor(pqid: PQID) {
-		this.pqid = pqid;
-		this.index = 0;
+	constructor(qid: DefaultQID, offset = 0) {
+		this.qid = qid;
+		this.index = offset;
 	}
 
 	@Override
 	public next(): IteratorEntry<string> {
-		if (this.index >= this.pqid._segments.length) {
+		if (this.index >= this.qid._segments.length) {
 			return {done: true};
 		} else {
-			return {done: false, value: this.pqid._segments[this.index++]};
+			return {done: false, value: this.qid._segments[this.index++]};
 		}
 	}
 }
 
 class ReversedArrayIterator extends ArrayIterator {
 
-	constructor(pqid: PQID) {
-		super(pqid);
-		this.index = this.pqid._segments.length - 1;
+	constructor(qid: DefaultQID, offset = 0) {
+		super(qid);
+		this.index = this.qid._segments.length - 1 - offset;
 	}
 
 	@Override
@@ -115,7 +202,7 @@ class ReversedArrayIterator extends ArrayIterator {
 		if (this.index < 0) {
 			return {done: true};
 		} else {
-			return {done: false, value: this.pqid._segments[this.index--]};
+			return {done: false, value: this.qid._segments[this.index--]};
 		}
 	}
 }
@@ -169,7 +256,14 @@ class SegmentIterator implements Iterator<string> {
  * Fully qualified id, general ID used for all declarations.
  * Type is required, all segments must be provided.
  */
-export public abstract class FQID implements QID {
+export public interface FQID extends QID {
+	
+	/**
+	 * Creates an FQID from a given string.
+	 */
+	public static parseString(fqid: string): FQID {
+		return DefaultQID.parseStringUsigCtor(LinkFQID, fqid);
+	}
 
 	@Override
 	public abstract get type(): string
@@ -183,13 +277,26 @@ export public abstract class FQID implements QID {
 	public get isFull(): boolean {
 		return true;
 	}
+	
+	
+}
+
+export public class LinkFQID extends DefaultQID implements FQID {
+	
+	constructor(type: string, segments: [string]) {
+		if (!type) {
+			throw new Error("FQID requires a type")
+		}
+		super(type, segments);
+	}
+	
 }
 
 /**
  * Fully qualified id used for elements and in general when the FQID of
  * the parent (of the element with the FQID) is known.
  */
-export public class ContainedFQID extends FQID {
+export public class ContainedFQID implements FQID {
 
 	@Override
 	@Final
@@ -217,31 +324,31 @@ export public class ContainedFQID extends FQID {
 	public get reversedSegments(): Iterable<string> {
 		return new ReversedSegmentIterable(this);
 	}
+	
+	@Override
+	public get reversedSegmentsWithoutLast(): Iterable<string> {
+		return new ReversedSegmentIterable(this, 1);
+	}
 
 	@Override
-	public toString(): string {
-		let res = this.type ? this.type + ":" : "";
-		let b = false;
-		for (let s of this.segments) {
-			if (b) res += "."; else b = true;
-			res += s;
-		}
-		return res;
-	}
+	public toString(): string { return this.asString(); }
 }
 
 class ReversedSegmentIterable implements Iterable<string> {
 
 	@Final
 	private start: ContainedFQID;
+	@Final
+	private offset: int
 
-	constructor(start: ContainedFQID) {
+	constructor(start: ContainedFQID, offset=0) {
 		this.start = start;
+		this.offset = offset;
 	}
 
 	@Override
 	public [Symbol.iterator](): Iterator<string> {
-		return new ReversedSegmentIterator(this.start);
+		return new ReversedSegmentIterator(this.start, this.offset);
 	}
 }
 
@@ -249,8 +356,12 @@ class ReversedSegmentIterator implements Iterator<string> {
 
 	private current: ContainedFQID;
 
-	constructor(current: ContainedFQID) {
+	constructor(current: ContainedFQID, offset = 0) {
 		this.current = current;
+		while (offset>0 && this.current) {
+			this.next();
+			offset--;
+		}
 	}
 
 	@Override

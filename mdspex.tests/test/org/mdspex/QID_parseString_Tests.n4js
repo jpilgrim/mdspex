@@ -1,0 +1,57 @@
+import {Assert} from "n4/mangel/assert/Assert";
+import {FQID} from "org/mdspex/IDs";
+import {PQID} from "org/mdspex/IDs";
+
+export public class FQID_parseString_Tests {
+
+	@Parameter
+    public fqidAsString: string
+
+	@Parameters("[{index}] {0}")
+    public static getFqidsAsString() {
+        return ["test:a", "test:a.b.c",
+        	"src:org.mdspex.FQID_parseString_Tests",
+        	"bib:Gamma96a",
+        	"sec:Section_1.Section_1_1.Section_1_1_a",
+        	"eq:Section_1.Section_1_1.1"
+        ].map(s=>[s]);
+    }
+    
+	@Test
+	testParseStringFQID() {
+		let fqid = FQID.parseString(this.fqidAsString);
+		let s = fqid.toString();
+		Assert.equal(s, this.fqidAsString);	
+	}
+
+}
+
+export public class PQID_parseString_Tests {
+
+	@Parameter
+    public pqidAsString: string
+
+	@Parameters("[{index}] {0}")
+    public static getPqidsAsString() {
+        return ["test:a", "test:a.b.c",
+        	"src:org.mdspex.FQID_parseString_Tests",
+        	"bib:Gamma96a",
+        	"sec:Section_1.Section_1_1.Section_1_1_a",
+        	"eq:Section_1.Section_1_1.1",
+        	//
+        	"a", "a.b.c", "bib:he…", "type:x.….y", "…y", "y…", "….x"
+        ].map(s=>[s]);
+    }
+    
+	@Test
+	testParseStringPQID() {
+		try {
+			let pqid = PQID.parseString(this.pqidAsString);
+			var s = pqid.toString();
+		} catch (e) {
+			Assert.fail("Error processing " + this.pqidAsString + ": " + e);
+		}
+		Assert.equal(s, this.pqidAsString);	
+	}
+
+}

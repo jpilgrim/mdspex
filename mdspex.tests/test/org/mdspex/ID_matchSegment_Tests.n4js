@@ -1,0 +1,90 @@
+import {Assert} from "n4/mangel/assert/Assert";
+import {matchSegment} from "org/mdspex/IDs";
+
+export public class ID_matchSegment_Tests {
+
+	@Test
+	testNonRegEx() {
+		Assert.isTrue(matchSegment("x", "x"));
+		Assert.isFalse(matchSegment("x…", "x"));
+		Assert.isFalse(matchSegment("x…", "x1"));
+	}
+
+	@Test
+	testRegExEnd() {
+		Assert.isTrue(matchSegment("x1", "x…"));
+	}
+
+	@Test
+	testRegExEndLess() {
+		Assert.isTrue(matchSegment("x", "x…"));
+	}
+
+	@Test
+	testRegExEndMore() {
+		Assert.isTrue(matchSegment("x...", "x…"));
+	}
+
+	@Test
+	testRegExStart() {
+		Assert.isTrue(matchSegment("1x", "…x"));
+	}
+
+	@Test
+	testRegExStartLess() {
+		Assert.isTrue(matchSegment("x", "…x"));
+	}
+
+	@Test
+	testRegExStartMore() {
+		Assert.isTrue(matchSegment("...x", "…x"));
+	}
+
+	@Test
+	testRegExMid() {
+		Assert.isTrue(matchSegment("x1y", "x…y"));
+	}
+
+	@Test
+	testRegExMidLess() {
+		Assert.isTrue(matchSegment("xy", "x…y"));
+	}
+
+	@Test
+	testRegExMidMore() {
+		Assert.isTrue(matchSegment("x...y", "x…y"));
+	}
+
+	@Test
+	testRegExFail() {
+		Assert.isFalse(matchSegment("x.ya", "x…y"));
+	}
+	
+	@Test
+	testRegExEsc() {
+		Assert.isTrue(matchSegment(".x...", ".x…"));
+		Assert.isFalse(matchSegment("!x...", ".x…"));
+		Assert.isTrue(matchSegment("(x).", "(x)…"));
+		Assert.isFalse(matchSegment("x.", "(x)…"));
+		Assert.isTrue(matchSegment("[a-z]...", "[a-z]…"));
+		Assert.isFalse(matchSegment("a...", "[a-z]…"));
+	}
+	
+	@Test
+	testTypicalCases1() {
+		Assert.isTrue(matchSegment("Definition of Something", "Def…"));
+		Assert.isTrue(matchSegment("Definition of Something", "…Something"));
+		Assert.isTrue(matchSegment("Definition of Something", "Def…Something"));
+		Assert.isFalse(matchSegment("Definition of Anything", "Def…Something"));
+		Assert.isFalse(matchSegment("Re-Definition of Something", "Def…Something"));
+	}
+	
+	@Test
+	testTypicalCases2() {
+		Assert.isTrue(matchSegment("Definition of Something of A", "Def…Some…A"));
+		Assert.isFalse(matchSegment("Definition of Something of B", "Def…Some…A"));
+		Assert.isTrue(matchSegment("Definition of Something of B", "Def…Some…B"));
+		Assert.isFalse(matchSegment("Definition of Something of A", "Def…Some…B"));
+	}
+
+}

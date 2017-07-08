@@ -1,4 +1,7 @@
+import {ElementAnchor} from "org/mdspex/ElementAnchor";
+import {ElementAnchorWithScope} from "org/mdspex/ElementAnchor";
 import {ContainedFQID} from "org/mdspex/IDs";
+import {FQID} from "org/mdspex/IDs";
 
 
 export public function is(node: Node, name: string): boolean {
@@ -11,6 +14,35 @@ export public enum ElementType {
 	INLINE,
 	PAR
 }
+
+export public function normalizeSegment(seg: string): string {
+	let s = "";
+	let lastChar = "";
+	for (let i = 0; i < seg.length; i++) {
+		let c = seg.charAt(i);
+		let code = seg.charCodeAt(i);
+		if (code>32) { // skip control
+			if ( // replace ASCII space, punctuation and symbols
+				(code>=32 && code<=47)
+			|| 	(code>=58 && code<=64)
+			||	(code>=91 && code<=96)
+			||  (code>=123 && code<=126)
+			|| (code>=160 && code<=191) // Latin space, punctuation and symbols
+			) c ="_";
+			if (c!='_') {
+				if (lastChar=='_' && s) {
+					s+='_'
+				}
+				s += c;
+			}
+			lastChar = c;
+		}
+	}
+	return s;
+}
+
+
+
 
 export public interface ASTSwitch<T> {
 
@@ -40,7 +72,7 @@ export public interface ASTSwitch<T> {
 			return this.caseElement(node as Element);
 		}
 		return this.caseNode(node);
-		
+
 	}
 
 	protected caseNode(node: Node): T {
@@ -102,7 +134,7 @@ export public abstract class Node {
 		} else {
 			parent.nodes.push(this);
 		}
-		
+
 	}
 
 	/**
@@ -128,43 +160,30 @@ export public abstract class Element extends Node {
 	indentLevel: int;
 
 	/**
-	 * ID of the element, this is used for linking and is often translated to the attribute
-	 * "id".
+	 * Only set if this element has an ID and can be linked to, i.e. it is an anchor.
 	 */
 	@Final
-	id: string;
-	@Final
-	idtype: string;
-	@Final
-	public idscope: Element;
-	@Final
-	public definesIdScope: boolean
+	anchor: ElementAnchor;
 
 	attributes: [Attribute];
 	nodes: [Node];
 
-	constructor(name: string, indentLevel: int, parent: Element, idtype: string= undefined, id: string =undefined, definesIdScope = false) {
+	constructor(name: string, indentLevel: int, parent: Element, idtype: string= undefined, id: string =undefined,
+		definesIdScope = false) {
+
 		super(parent);
 		this.name = name;
 		this.indentLevel = indentLevel;
-		this.id = id;
-		this.idtype = idtype;
-		let p = parent;
-		while (p && ! p.definesIdScope) p=p.parent; 
-		this.idscope = p;
-		this.definesIdScope = id? definesIdScope : false;
+		if (id) {
+			let ctor: constructor{ElementAnchor} = (definesIdScope ? ElementAnchorWithScope : ElementAnchor);
+			this.anchor = new ctor({element: this, id: id, type: idtype});
+		}
 	}
-	
+
 	get fqid(): ContainedFQID {
-		
-		if (this.id) { 
-			let scopesFQID: ContainedFQID = undefined;
-			let scope = this.idscope; 
-			while (scope && !scopesFQID) {
-				scopesFQID = scope.fqid;
-				scope = scope.parent;
-			}
-			return new ContainedFQID(this.idtype, this.id, scopesFQID)
+
+		if (this.anchor) {
+			return this.anchor.fqid;
 		}
 		return undefined;
 	}
@@ -222,9 +241,9 @@ export public abstract class Element extends Node {
 			(child as CDATA).trim();
 		}
 	}
-	
+
 	public setAttribute(name: string, value: string) {
-		let attr = this.attributes.find(a=>a.name==name);
+		let attr = this.attributes.find(a => a.name == name);
 		if (attr) {
 			attr.value = value;
 		} else {
@@ -232,9 +251,9 @@ export public abstract class Element extends Node {
 			this.attributes.push(attr);
 		}
 	}
-	
+
 	public getAttribute(name: string, defValue: string=): string {
-		let attr = this.attributes.find(a=>a.name==name);
+		let attr = this.attributes.find(a => a.name == name);
 		if (attr) {
 			return attr.value;
 		}
@@ -296,6 +315,19 @@ export public class Inline extends CDATAContainer {
 	}
 }
 
+export public class Link extends Inline {
+	
+	constructor(indentLevel: int, parent: Element, targetPQID: string) {
+		super("link", indentLevel, parent);
+		this.setAttribute("pqid", targetPQID);
+	}
+	
+	public resolve(fqid: FQID) {
+		this.setAttribute("fqid", fqid.toString());
+	}
+}
+
+
 /**
  * A paragraph can only contain CDATA or inline elements, but no block elements nor
  * other paragraphs. 
@@ -329,9 +361,11 @@ export public class CDATA extends Node {
 
 @Final
 export public class Attribute {
-	@Final name: string;
+
+	@Final
+	name: string;
 	value: string;
-	
+
 	public constructor(name: string, value: string) {
 		this.name = name;
 		this.value = value;
