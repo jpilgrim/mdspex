@@ -45,9 +45,9 @@ export public class SegmentMapTests {
 	@Test
 	test() {
 		let segmap = new SegmentMap();
-		let parent = segmap.getOrCreateParent("id");
+		let parent = segmap.getOrCreatePredecessor("id");
 		Assert.isNotNullOrUndefined(parent);
-		Assert.equal(segmap.getOrCreateParent("id"), parent);
+		Assert.equal(segmap.getOrCreatePredecessor("id"), parent);
 	}
 
 }
@@ -153,7 +153,7 @@ export public class MDSpexPerformanceTests {
 						this.add("sec:Chapter_" + c + ".Section_+" + sec1 + ".Subsection_" + sec2 +
 							".Subsubsection_" + sec3);
 						for (let req = 1; req <= NUM; req++) {
-							this.add("sec:Chapter_" + c + ".Section_+" + sec1 + ".Subsection_" + sec2 +
+							this.add("req:Chapter_" + c + ".Section_+" + sec1 + ".Subsection_" + sec2 +
 								".Subsubsection_" + sec3 + ".Requirement_" + req);
 						}
 					}
@@ -170,7 +170,7 @@ export public class MDSpexPerformanceTests {
 						this.assertFind("sec:Chapter_" + c + ".Section_+" + sec1 + ".Subsection_" + sec2 +
 							".Subsub…" + sec3);
 						for (let req = 1; req <= NUM; req++) {
-							this.assertFind("sec:Chapter_" + c + ".Section_+" + sec1 + ".Subsection_" + sec2 +
+							this.assertFind("Chapter_" + c + ".Section_+" + sec1 + ".Subsection_" + sec2 +
 								".Subsubsection_" + sec3 + ".Requirement_" + req);
 						}
 					}

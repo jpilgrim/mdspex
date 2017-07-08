@@ -55,17 +55,57 @@ export public interface IDScope {
 
 }
 
+/**
+ * This is the basic data structure for the global index.
+ * It stores the anchors with reversed FQIDs whereby the FQID is not stored explicitly.
+ * 
+ * Given three fqids "a.b.c", "x.y.c", and "a.b.e". This would create the following 
+ * map structure (in JSON style with the map as properties):
+ * 
+ * 	c: { anchor: undefined
+ * 		 predecessors: {
+ * 			b: { anchor: undefined
+ * 				 predecessors: {
+ * 					a: { anchor: a.b.c, parents: undefined }
+ * 				 }},
+ * 			y: { anchor: undefined
+ * 				 predecessors: {
+ * 					x: { anchor: x.y.c, parents: undefined }
+ * 		}}}},
+ * 	e: { anchor: undefined
+ * 		 predecessors: {
+ * 			b: { anchor: undefined
+ * 				 predecessor: {
+ * 					a: { anchor: a.b.e, parents: undefined }
+ * 		}}}} 
+ * 
+ * This enables very fast look-up using PQIDs. E.g. "c" would return "a.b.c" and "x.y.c"
+ * and this would require only to lookup "c" and then transitively collect all
+ * anchors beneath it without further evaluation of any segments.
+ *  
+ */
 export public class SegmentMap {
-	parents = new Map<string, SegmentMap>();
+	/**
+	 * The predecessor segments. Since the tree is "reversed", the SegmentMaps contained
+	 * as values in this map actually represent the "preceeding" segments of the
+	 * qualified ID.
+	 */
+	private predecessors = new Map<string, SegmentMap>();
+	
+	/**
+	 * Optionally an anchor, this would be always set if parents is empty.
+	 * Note that the last segment of the anchor is not stored in this
+	 * map itself but rather by its containing map.
+	 */
 	anchor: Anchor;
 
-	getOrCreateParent(segment: string): SegmentMap {
-		let parent = this.parents.get(segment);
-		if (!parent) {
-			parent = new SegmentMap();
-			this.parents.set(segment, parent);
+	getOrCreatePredecessor(segment: string): SegmentMap {
+		let predecessor = this.predecessors.get(segment);
+		if (!predecessor) {
+			predecessor = new SegmentMap();
+			this.predecessors.set(segment, predecessor);
 		}
-		return parent;
+		return predecessor;
 	}
 
 	/**
@@ -80,19 +120,19 @@ export public class SegmentMap {
 				anchors.push(this.anchor);
 				if (firstOnly) return true;
 			}
-			for (let p of this.parents.values()) {
+			for (let p of this.predecessors.values()) {
 				if (p.collectAnchors(reversedSegments, anchors) && firstOnly) {
 					return true;
 				}
 			}
 		} else {
 			// quick
-			let p = this.parents.get(seg.value);
+			let p = this.predecessors.get(seg.value);
 			if (p) {
 				return p.collectAnchors(reversedSegments, anchors);
 			}
 			if (QID.containsWildcard(seg.value)) {
-				for (let [name, map] of this.parents.entries()) {
+				for (let [name, map] of this.predecessors.entries()) {
 					if (matchSegment(name, seg.value)) {
 						if (map.collectAnchors(reversedSegments, anchors) && firstOnly) {
 							return true;
@@ -107,22 +147,41 @@ export public class SegmentMap {
 }
 
 export public class MDSpexIndex {
-
+	
+	/**
+	 * This is the global index to enable fast retrieval of anchors based on
+	 * PQIDs. This initial map uses the type as key. For the functionality of
+	 * the index, see SegmentMap.
+	 */
 	inversedFQIDsByType = new Map<string, SegmentMap>();
 
-	add(anchor: Anchor) {
+	/**
+	 * Adds given anchor to index, so that it is retrievable via a
+	 * PQID.
+	 * 
+	 * Returns the anchor previously registered for the anchor's FQID or undefined,
+	 * if no such anchor exists (which should usually be the case).
+	 */
+	add(anchor: Anchor): Anchor {
 		let segmap = this.inversedFQIDsByType.get(anchor.type);
 		if (!segmap) {
 			segmap = new SegmentMap();
 			this.inversedFQIDsByType.set(anchor.type, segmap);
 		}
 		for (let seg of anchor.fqid.reversedSegments) {
-			segmap = segmap.getOrCreateParent(seg);
+			segmap = segmap.getOrCreatePredecessor(seg);
 		}
-		// TODO warning
+		let old = segmap.anchor;
 		segmap.anchor = anchor;
+		return old;
 	}
 
+	/**
+	 * Finds an anchor by given pqid. If context is not given, then only a global
+	 * search is performed.
+	 * 
+	 * Local anchors always shadow global anchors.
+	 */
 	public find(pqid: PQID, context: Element = undefined, firstOnly=false): [? extends Anchor] {
 
 		// local
