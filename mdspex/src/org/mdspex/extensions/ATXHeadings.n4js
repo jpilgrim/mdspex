@@ -1,12 +1,17 @@
 import {Element} from "org/mdspex/ASTNodes";
-import {ElementType} from "org/mdspex/ASTNodes";
 import {Paragraph} from "org/mdspex/ASTNodes";
 import {Category} from "org/mdspex/Category";
+import {ElementAnchorWithScope} from "org/mdspex/ElementAnchor";
 import {AbstractExtension} from "org/mdspex/Extension";
 import {ExtensionContext} from "org/mdspex/Extension";
 import {ExtensionEndMarker} from "org/mdspex/Extension";
+import {ExtensionType} from "org/mdspex/Extension";
 import {IdentityProvider} from "org/mdspex/Extension";
 import {OutputProvider} from "org/mdspex/Extension";
+
+class Heading extends Paragraph {
+	level: int;
+}
 
 
 export public class ATXHeading extends AbstractExtension {
@@ -26,8 +31,8 @@ export public class ATXHeading extends AbstractExtension {
 	}
 	
 	@Override
-	public get elementType(): ElementType {
-		return ElementType.PAR
+	public get extensionType(): ExtensionType {
+		return ExtensionType.PAR
 	}
 
 	@Override
@@ -74,7 +79,35 @@ export public class ATXHeading extends AbstractExtension {
 	@Override
 	public createElement(context: ExtensionContext): Element {
 		let level = context.processorState.currentToken.rawValue.length;
-		return new Paragraph("h" + level, context.indentLevel, context.currentElement);
+		let heading = new Heading("h" + level, context.indentLevel, context.currentElement);
+		heading.level = level;
+		return heading;
+	}
+	
+	@Override
+	public closeElement(element: Element, context: ExtensionContext) {
+		super.closeElement(element, context);
+		
+		if(!element instanceof Heading) {
+			throw new Error("Internal state broken, expected heading to be closed, was " + element.constructor );
+		}
+		
+		let level = (element as Heading).level;
+		let containingScope = this.findContainingScope(context.processorState.currentScope, level-1);
+		element.setAnchor("sec", element.text, containingScope, true);
+		context.processorState.currentScope = element.anchor as ElementAnchorWithScope;
+	}
+	
+	private findContainingScope(currentScope: ElementAnchorWithScope, requestedLevel: int): ElementAnchorWithScope {
+		let s = currentScope;
+		while (s) {
+			if (s.element instanceof Heading) {
+				let foundLevel = (s.element as Heading).level;
+				if (foundLevel<=requestedLevel) return s;
+			} 
+			s = s.containingScope;
+		}
+		return s; // might be undefined (h1)
 	}
 	
 	@Override

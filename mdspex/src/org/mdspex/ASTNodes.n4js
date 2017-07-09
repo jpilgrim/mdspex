@@ -11,27 +11,43 @@ export public function is(node: Node, name: string): boolean {
 
 export public enum ElementType {
 	BLOCK,
+	PAR,
 	INLINE,
-	PAR
+	/**
+	 * "Character Formatting", 
+	 * almost similar to inline, except that it its content does not necessarily
+	 * define a "word".
+	 */
+	CFORMATTING,
+	/**
+	 * Character Data, returned only by CDATA.
+	 */
+	CDATA
 }
 
+/**
+ * [SPEX-1005]
+ */
 export public function normalizeSegment(seg: string): string {
 	let s = "";
 	let lastChar = "";
 	for (let i = 0; i < seg.length; i++) {
 		let c = seg.charAt(i);
 		let code = seg.charCodeAt(i);
-		if (code>32) { // skip control
+		if (code > 31) { // skip control
 			if ( // replace ASCII space, punctuation and symbols
-				(code>=32 && code<=47)
-			|| 	(code>=58 && code<=64)
-			||	(code>=91 && code<=96)
-			||  (code>=123 && code<=126)
-			|| (code>=160 && code<=191) // Latin space, punctuation and symbols
-			) c ="_";
-			if (c!='_') {
-				if (lastChar=='_' && s) {
-					s+='_'
+					(code >= 32 && code <= 47)
+				|| (code >= 58 && code <= 64)
+				|| (code >= 91 && code <= 96)
+				|| (code >= 123 && code <= 126)
+				|| (code >= 160 && code <= 191) // Latin space, punctuation and symbols
+				) {
+				c = "_";
+			}
+			if (c != '_')
+			{
+				if (lastChar == '_' && s) {
+					s += '_';
 				}
 				s += c;
 			}
@@ -40,9 +56,6 @@ export public function normalizeSegment(seg: string): string {
 	}
 	return s;
 }
-
-
-
 
 export public interface ASTSwitch<T> {
 
@@ -115,6 +128,8 @@ export public abstract class Node {
 
 	startOffset: int;
 	endOffset: int;
+	
+	abstract get type(): ElementType
 
 	/**
 	 * Creates this node with given parent and add this node to parent's child nodes.
@@ -142,6 +157,9 @@ export public abstract class Node {
 	 * to indent level. Basically used for debugging and tests.
 	 */
 	public abstract toXML(indent=0): string
+	
+	
+	public abstract get text(): string
 
 }
 
@@ -160,24 +178,33 @@ export public abstract class Element extends Node {
 	indentLevel: int;
 
 	/**
-	 * Only set if this element has an ID and can be linked to, i.e. it is an anchor.
+	 * Only set if this element has an ID and can be linked to, 
+	 * i.e. it is an anchor.
 	 */
-	@Final
 	anchor: ElementAnchor;
 
 	attributes: [Attribute];
+	
 	nodes: [Node];
 
-	constructor(name: string, indentLevel: int, parent: Element, idtype: string= undefined, id: string =undefined,
-		definesIdScope = false) {
-
+	constructor(name: string, indentLevel: int, parent: Element) {
 		super(parent);
 		this.name = name;
 		this.indentLevel = indentLevel;
-		if (id) {
-			let ctor: constructor{ElementAnchor} = (definesIdScope ? ElementAnchorWithScope : ElementAnchor);
-			this.anchor = new ctor({element: this, id: id, type: idtype});
-		}
+	}
+	
+	get hasNodes(): boolean {
+		return this.nodes && this.nodes.length>0 ? true : false;
+	}
+	
+	/**
+	 * Sets the anchor of the element. This can often be done only
+	 * when the element is to be closed (by the parse), since the
+	 * information required to compute the ID may not be present earlier.
+	 */
+	setAnchor(type: string, simpleID: string, containingScope: ElementAnchorWithScope, definesScopeItself=false) {
+		let ctor: constructor{ElementAnchor} = (definesScopeItself ? ElementAnchorWithScope : ElementAnchor);
+		this.anchor = new ctor({element: this, id: simpleID, type: type, containingScope: containingScope});
 	}
 
 	get fqid(): ContainedFQID {
@@ -193,8 +220,12 @@ export public abstract class Element extends Node {
 		let parts: [string] = [];
 		parts.push("<" + this.name + (this.attributes ?
 				this.attributes.map(a => " " + a.name + '= "' + a.value + '"').join("") : ""));
-
-		if (this.nodes) {
+		
+		if (this.anchor) {
+			parts.push(' id="' + this.anchor.fqid+'"');
+		}
+		
+		if (this.hasNodes) {
 			parts.push(">");
 			parts.push(this.nodes.map((c, i) => {
 					if (!(c instanceof CDATA) || i > 0) {
@@ -226,19 +257,26 @@ export public abstract class Element extends Node {
 		return undefined;
 	}
 
-	public abstract type(): ElementType
-
 	public get lastChild(): Node {
-		if (this.nodes) {
+		if (this.hasNodes) {
 			return this.nodes[this.nodes.length - 1];
 		}
 		return undefined;
 	}
 
 	public trim() {
-		let child = this.lastChild;
-		if (child instanceof CDATA) {
-			(child as CDATA).trim();
+		if (! this.hasNodes) return;
+		let firstChild = this.nodes[0]; 
+		let lastChild = this.lastChild;
+		if (lastChild instanceof CDATA) {
+			if (lastChild=firstChild) {
+				(lastChild as CDATA).trim();
+				return;
+			}
+			(lastChild as CDATA).trim(false, true);
+		}
+		if (lastChild instanceof CDATA) {
+			(lastChild as CDATA).trim(true, false);
 		}
 	}
 
@@ -259,7 +297,21 @@ export public abstract class Element extends Node {
 		}
 		return defValue;
 	}
-
+	
+	@Override
+	public get text(): string {
+		if (!this.hasNodes) return "";
+		let t = "";
+		for (let c of this.nodes) {
+			if (c.text && t && !t.endsWith(" ") && c.type!=ElementType.CFORMATTING) {
+				t+=" ";
+			}
+			t += c.text;
+			
+		}
+		return t;
+	}
+	
 }
 
 /**
@@ -276,7 +328,7 @@ export public class Block extends Element {
 	}
 
 	@Override
-	public type(): ElementType {
+	public get type(): ElementType {
 		return ElementType.BLOCK;
 	}
 }
@@ -304,29 +356,40 @@ export public abstract class CDATAContainer extends Element {
 }
 
 /** 
- * An inline element may contain CDATA or other inline elements, 
+ * An inline element may contain CDATA, other inline or CFORMATTING elements, 
  * but not blocks, paragraphs or lines.
  */
 export public class Inline extends CDATAContainer {
 
 	@Override
-	public type(): ElementType {
+	public get type(): ElementType {
 		return ElementType.INLINE;
 	}
 }
 
+/** 
+ * A character formatting element may contain CDATA or other CFORMATTING elements, 
+ * but not blocks, paragraphs, inline or lines.
+ */
+export public class CFormatting extends CDATAContainer {
+
+	@Override
+	public get type(): ElementType {
+		return ElementType.CFORMATTING;
+	}
+}
+
 export public class Link extends Inline {
-	
+
 	constructor(indentLevel: int, parent: Element, targetPQID: string) {
 		super("link", indentLevel, parent);
 		this.setAttribute("pqid", targetPQID);
 	}
-	
+
 	public resolve(fqid: FQID) {
 		this.setAttribute("fqid", fqid.toString());
 	}
 }
-
 
 /**
  * A paragraph can only contain CDATA or inline elements, but no block elements nor
@@ -335,7 +398,7 @@ export public class Link extends Inline {
 export public class Paragraph extends CDATAContainer {
 
 	@Override
-	public type(): ElementType {
+	public get type(): ElementType {
 		return ElementType.PAR;
 	}
 }
@@ -353,8 +416,34 @@ export public class CDATA extends Node {
 		this.content = this.content + s;
 	}
 
-	public trim() {
-		this.content = this.content.trim();
+	public trim(front=true,tail=true) {
+		if (front&&tail) {
+			this.content = this.content.trim();
+			return;
+		}
+		let f=0;
+		if (front) {
+			while (f<this.content.length && this.content.charAt(f)==" ") {
+				f++;
+			}
+		}
+		let t=this.content.length;
+		if (tail) {
+			while (t>0 && this.content.charAt(t)==" ") {
+				t--;
+			}
+		}
+		this.content = this.content.substring(f, t);
+	}
+	
+	@Override
+	public get text(): string {
+		return this.content;
+	}
+
+	@Override
+	public get type(): ElementType {
+		return ElementType.CDATA;
 	}
 
 }
@@ -377,7 +466,7 @@ export public class Document extends Block {
 	indexes: Map<string, [Element]>;
 
 	constructor() {
-		super("spex", 0, undefined, undefined);
+		super("spex", 0, undefined);
 	}
 
 	public stringify(offsets=false, ids=false): string {

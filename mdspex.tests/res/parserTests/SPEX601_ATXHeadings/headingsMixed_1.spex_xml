@@ -11,12 +11,12 @@ This is even more.
 To something different.
 _______________________________________
 <spex>
-<h1>Hello</h1>
+<h1 id="sec:Hello">Hello</h1>
 <p>Hello World</p>
-<h2>More</h2>
+<h2 id="sec:Hello.More">More</h2>
 <p>This is more.</p>
-<h2>And</h2>
+<h2 id="sec:Hello.And">And</h2>
 <p>This is even more.</p>
-<h1>Now</h1>
+<h1 id="sec:Now">Now</h1>
 <p>To something different.</p>
 </spex>

@@ -1,4 +1,7 @@
 
+/**
+ * [SPEX-1003]
+ */
 export public function matchSegment(segment: string, segPattern: string): boolean {
 	if (segPattern.indexOf("…")>=0) {
 		let regex = segPattern.replace(/([.+?\[\]()$^])/g, "\\$1").replace(/…/g, ".*");

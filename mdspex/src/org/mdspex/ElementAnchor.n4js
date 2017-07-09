@@ -28,47 +28,19 @@ export public class ElementAnchor implements Anchor {
 	@Final
 	@Override
 	public type: string;
+	
+	@Final
+	public containingScope: ElementAnchorWithScope;
 
 	@CovariantConstructor
 	constructor(@Spec spec: ~i~this) {
 		this.id = normalizeSegment(spec.id);
 	}
 
-	/**
-	 * Returns either the scope defined by this anchor, or
-	 * the next parent scope.
-	 */
-	public get idscope(): ElementAnchorWithScope {
-		let e = this.element;
-		do {
-			if (e.anchor instanceof ElementAnchorWithScope) {
-				return e.anchor as ElementAnchorWithScope;
-			}
-			e = e.parent;
-		} while (e);
-		return undefined;
-	}
-	
-	/**
-	 * Returns the parent scope, maybe similar to idscope if the anchor
-	 * does not define a scope itself.
-	 */
-	public get parentScope(): ElementAnchorWithScope {
-		let e = this.element.parent;
-		while (e) {
-			if (e.anchor instanceof ElementAnchorWithScope) {
-				return e.anchor as ElementAnchorWithScope;
-			}
-			e = e.parent;
-		}
-		while (e);
-		return undefined;
-	}
-
 	@Override
 	public get fqid(): ContainedFQID {
-		let parentScope = this.parentScope;
-		return new ContainedFQID(this.type, this.id, parentScope?parentScope.fqid:undefined);
+		let scope = this.containingScope;
+		return new ContainedFQID(this.type, this.id, scope?scope.fqid:undefined);
 	}
 }
 
@@ -77,6 +49,12 @@ export class ElementAnchorWithScope extends ElementAnchor implements IDScope {
 	@Override
 	@Final
 	public scopedAnchors: [ElementAnchor] = [];
-
+	
+	@Override
+	public get fqid(): ContainedFQID {
+		return new ContainedFQID(this.type, this.id, 
+			this.containingScope?this.containingScope.fqid:undefined
+		);
+	}
 	
 }

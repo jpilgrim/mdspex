@@ -4,13 +4,13 @@
 * list2
 _______________________________________
 <spex>
-<h1>Head1</h1>
+<h1 id="sec:Head1">Head1</h1>
 <ul>
 	<li>
 	<p>list1</p>
 	</li>
 </ul>
-<h1>Head2</h1>
+<h1 id="sec:Head2">Head2</h1>
 <ul>
 	<li>
 	<p>list2</p>

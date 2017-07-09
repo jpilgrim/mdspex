@@ -2,7 +2,7 @@
 
 This is WORK IN PROGRESS!
 
-This document specified the markdown language MDSpex with default extensions. The MDSpex processor is currently developed and not done yet.
+This document specified the markdown language MDSpex with default extensions. The MDSpex processor is currently under developed and not done yet.
 The features described in this document link to github issues at https://github.com/jpilgrim/mdspex/issues . These issues may be not closed yet,
 meaning that the corresponding features are not implemented yet.
 
@@ -15,7 +15,7 @@ and powerful enough to enable writing technical *specifications*,
 in particular for software projects. If possible, extensions are to be designed compatible with
 [http://asciidoctor.org/docs/asciidoc-writers-guide|Asciidoc] .
 For the target document type, it comes with a set of predefined extensions.
-For mathematical formulars, Tex-like syntax is supported.
+For mathematical equations, Tex-like syntax is supported.
 
 The output format of MDSpex documents is created by output processors. 
 Although different output formats may be produced by different processors, 
@@ -82,7 +82,7 @@ The following categories are for internal or special use, these characters canno
 	IGNORE: Ignore, character 0
 	INVALID: Invalid character
 	
-For mathematical formulars, a subset of Tex is supported. Since this is done similar to Tex, the following
+For mathematical equations, a subset of Tex is supported. Since this is done similar to Tex, the following
 categories known from Tex are used:	
 	
 	TEX_ESC: Tex: Escape character in Tex, '\' by default.
@@ -288,69 +288,140 @@ TODO: Specify macros, possible macros: alias, rename, block
 
 # Linking
 
+MDSpex provides a powerful linking mechanism. The general rational behind the linking algorithms is to allow for specifying links as short as possible to write, and to reduce the need of explicitly defining any anchors.
+
+
+## Anchors and Scopes
+
 Linking consists of two parts: an anchor and a link. 
-Anchors are implicitly defined by certain elements, they have a name (which is an ID, a title or is 
-by derived from other values depending on the extension creating an anchor).
-For linking it makes no difference how the anchor is defined. The extension creating the anchor also defines the type of an anchor.
+Anchors are implicitly defined by certain elements. 
+They must have an ID, which may be derived from other attributes, e.g. the CDATA of a section (with certain normalizations). 
+For linking it makes no difference how the anchor is defined. 
+The extension creating the anchor also defines the type of an anchor and it is responsible for deriving the id.
 
-## Anchors, Links and Scopes
+In general if an element defines an ID, an anchor is created for that element.
+In contrast to HTML anchors and element IDs, anchors in MDSpex are hierarchically scoped. Every anchor can define a scope itself, causing children of the element or, depending on the extension defining the element and the anchor, succeeding anchors (of succeeding elements) may become sub-scopes.
 
-Unless otherwise defined by an extension, anchors are scoped. 
-Certain elements may define a scope, either for its children or for its succeeding siblings. The name of the scope simply is the name of
-the anchor of the element defining the scope. Links to scopes either reference the simple name, the fully qualified name, or are partially qualified.
-For linking we say that an anchor has a name. If a name contains non-letter characters, it is to be surrounded by quotes in the link.
-The fully qualified name (FQN) of an anchor is the concatenation of the type and the names of all containing scopes of the anchor.
-The type of the anchor is separated by colon from the scope segments; the scope segments are separated by a forward slash, a dot, or hash character. 
-Also the first segment has to be preceded by a segment separator. A partially qualified name (PQN) is a name of an anchor, preceded by names of its containing scopes.
-Syntactically the simple name is a PQN, so we only refer to PQs in the following. It is also possible to use relative names. A relative name may specify
-the offset defining a sibling before (+) or after (-) the current scope.
+That leads to the notion of fully qualified IDs of an anchor.
 	
-The syntax of the links is defined as follows
+REQ SPEX-1001: Syntax of FQIDs and PQIDs	
+	TASK: #10
+	The syntax of fqids, pqids and links is defined as follows:
 	
 	EBNF:
-		name: LETTER|DIGIT (LETTER|' '|OTHER «but not '"' or SEP)* | '"' [^"]+ '"';
-		simpleName: LETTER (LETTER|DIGIT|'_')+
-		fqn: type ':' (SEP name)+;
-		pqn: [type ':'] (name (SEP name)*))? | [type ':'] relname (SEP name)?;
+		idsymbol«allowWildcard»: LETTER|DIGIT|'_'|OTHER «including '…' if allowWildcard»«endif»
+		segment«allowWildcard»: idsymbol«allowWildcard»*;
+
+		qid: fqid|pqid;
+		fqid: type ':' segment«false» (SEP segment«false»)*;
+		pqid: [type ':'] (segment«true» (SEP segment«true»)*))?;
 		
-		relname: sn | '+'|'-' DIGIT+
-		SEP: '.' | '/' | '#';
+		SEP: '/' | '.'; // '.' is used if no '/' is found, only one character can be used in one qid
+
+REQ SPEX-1008: FQIDs of Anchors
+	TASK: #10
+	
+	The fully qualified id (fqid) of an anchor is the concatenation of the simple id of the anchor's element, preceded by the fqid of the element (or respective anchor) defining the scope if such a scope exists. The type of the fqid is derived from the element type by the extension.
+
+## Links
+
+A link to an element is done via a so called partially qualified id (pqid). This may be similar to the fqid, or a shorter version. That is, the ids of outer segments may be omitted. It is even possible to use wildcards.
+
+Since anchors are scopes it is usually not required for anchor 
+names to be globally unique. However certain extensions may add this constraint for
+enabling indexes and easier linking.
+
+NOTE: 
+	By default, the HTML element created for an MDSpex element will have the id attribute set for actual linking. Its value will be the string representation of the FQID. Accordingly HTML links will have to use the FQID of an anchor. This may be changed by extensions though. In particular extensions enforcing document wide unique (simple) ids may alter this default behavior in order to enable shorter (HTML) links. However linking to MDSpex created HTML elements is problematic anyway, since the final document may be split-up into several documents automatically. Moving a linked element from one section to another might then lead to moving the HTML element to another file, breaking existing links from the outside to that element even if the id attribute of that element has not been changed at all.
+
+Note that although segments can be almost an character, extensions computing the id may restrict the name further. This is true for the standard heading extension as described below.
+
+A default extension is provided for defining links with the following syntax:
+
+REQ SPEX-1002: Default link syntax
+	TASK: #10
+
+	EBNF:
+		link: prefixLink | braketLink;
+		prefixLink: ('>>' | ^) pqid;
+		braketLink: '[' pqid ']'
+
+REQ SPEX-1003: Qualified Name Matching
+	TASK: #10
+
+	A FQID typeF:segFn...segF1 matches a PQID typeP:segPk..segP1 if and only iff
+	- if typeP is specified, then typeF must exactly equals typeP
+	- n>=k, that is, the FQID must have at least as much segments as the PQID
+	- for all segFi, segPi, i=0..k the segments match. That is, segFi must match
+		a regular rexpression Ri derived from segPi, in which all wildcards "…" are
+		replaced with ".*" expressions.
+
+REQ SPEX-1004: Linking Algorithm
+	TASK: #10
+
+	The linking mechanisms works as follows:
+	1. The scope hierarchy (from link location up to document root) is used
+		to locally resolve a link.
+	2. If no anchor is found in the scope hierarchy, 
+		the link is globally resolved.
+	
+	If not otherwise specified, the first match is used in case several anchors match a PQID.
 		
-If an anchor is not referenced by the FQN, which needs to be unique, the anchor which is "closest" to the reference is selected.
+REQ SPEX-1005: Default anchor ID normalization
+	Task: #10
+
+	The default anchor ID normalization used for all anchors of AST elements converts any given string into an anchor ID with
+	the following properties:
+	- all spaces, punctuation and other symbols are converted to underscores "_"
+	- trailing and leading underscores are omitted
+	- multiple succeeding underscores are merged to a single underscore
+
+The default header extension defines an anchor of type 'sec' (for section), ignoring the heading level. The anchor is is derived from the heading title using ^SPEC-1005.
+
+Note that in general, anchor ids may contain arbitrary characters including spaces. A  normalized ID does not contain spaces. This allows for using the prefix link syntax.
+
 
 SAMPLE 1: Given the following snippet:
 	```
 	# Big Equations
 	## Pythagoras
 	EQ 1: $a^2 + b^2 = c^2$
-	Formular [1] is known from geometry.
+	Equation [eq:1] is known from geometry.
 	## Einstein
 	EQ 1: $e = m * c^2$
-	Formular [eq:1] is known from physics. It also contains a $c^2$ as [-1/1]
+	Equation [1] is known from physics. It also contains a $c^2$ as ^Pyth….1.
 	```
-	It is now possible to link to the first equation via the FQN `"eq:/Big Equations/Pythagoras/1` and the second one via
-	`eq:/Big Equations/Einstein/1`. The links are scoped, thus the first reference links to the equations in the same section. 
-	Note that the second reference has the type specified but the first hasn't. Since there are not other elements with id "1" in
-	the scope, both links are valid. More about references see below.
-	
-Since anchors are scopes it is usually not required for anchor names to be globally unique. However certain extensions may add this constraint for
-enabling indexes.	
 
-References are created by extension, see below for details.
+	This examples defines 5 anchors, we list the fqids of here. Sections also defines scopes:
+	- sec:Big_Equations -- with scope
+	- sec:Big_Equations/Pyhtagoras -- with scope
+	- eq:Big_Equations/Pyhtagoras/1
+	- sec:Big_Equations/Einstein -- with scope
+	- eq:Big_Equations/Einstein/1
+
+	Rhe links are resolved as follows:
+	- `[eq:1]` is resolved locally to the equation defined above that line.
+	- `[1]` is also resolved locally, but to the second equation. 
+		Since no other anchor with that id is defined, no type is required for linking.
+	- `^Pyth….1` is resolved globally: 
+		'Pyth….1' matches 'eq:Big_Equations/Pyhtagoras/1' since the last segments are similar, the second segment is matched by wildcard, and the first segment 'Big_Equations' can be omitted in the pqid. Also the type is not required in that case. Since the heading extension removes spaces, it is possible to use the prefix link syntax.
+
+The text and layout of the links in the final text is created by extensions registered to handle certain types of links.
+
 
 ## Dictionaries and External Links
 
 So far all anchors were defined in MDSpex documents directly. Often it is required to link to elements "outside" the document.
 
 The most obvious case is to link to arbitrary URLs. 
-This is simply possible by using generic referenes and "http" (or "https") as element type.
+This is simply possible by using generic references and "http" (or "https") as element type.
 
 These links directly link to the URL defined by the reference. In other words: The reference needs to be fully qualified.
 
-In many cases it is convenient to use PQNs for linking. This is true in particular for source code elements. MDSpex supports dictionaries for
-enabling PQNs to arbitrary elements outside the MDSpex document. 
+In many cases it is convenient to use pqids for linking. This is true in particular for source code elements. MDSpex supports dictionaries for
+enabling pqids to arbitrary elements outside the MDSpex document. 
 
-In case of internal links, a link as a single purpose: The reader of the documents wants to navigate to the element defining the anchor.
+In case of internal links, a link has a single purpose: The reader of the documents wants to navigate to the element defining the anchor.
 Thus, most internal links simply navigate to the anchor.
 
 In case of external links, there may be multiple targets: In the case of source code elements for instance one may want to navigate to the
@@ -387,6 +458,26 @@ REQ SPEX-601: ATX Headings
 	EBNF: ATX-Heading Extension
 		headingATX := ^ level=#'#' space title EOL
 
+REQ SPEX-1006: Heading Anchors
+	Task: #10
+
+	For each heading an anchor is automatically created. Its id is the title of
+	the anchor in normalized form (cf. ^SPEC-1005).
+
+	The type of headings is "sec", independent of their level.
+
+	A heading H with level n defines a scope for all succeeding elements E as follows:
+	- if E is a heading itself with level k:
+		- if k<=n, the scope of H ends before element E
+		- if k>n, the scope defined by E becomes a sub-scope of H's scope
+	- if E is an element defining a scope itself, 
+		then this scope becomes a sub-scope of H's scope 
+		unless otherwise specified
+
+REQ SPEX-1007: Heading Links
+	Task: #10
+
+	The link text to a heading is its title.
 
 ## Lists
 
@@ -529,3 +620,30 @@ TODO:
 	Instead of creating output, the included file is expanded at the current location.	
 	
 
+# Source Maps and Traceability
+
+TODO: Enable traces and links such as 
+		<a href="subl:/Users/account/file.md:10:5">subl</a>
+	which could open an external editor (e.g., Sublime) in combination with a script as follows:
+		
+		on open location this_URL
+			set SUBL to "/usr/local/bin/subl"
+			set x to the offset of ":" in this_URL
+			set the argument_string to text from (x + 1) to -1 of this_URL
+			set cmdline to SUBL & " " & argument_string
+			do shell script cmdline
+		end open location
+
+	This needs to be saved as "Application" with the following lines in "info.plist":
+	
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleURLName</key>
+				<string>Sublime Opener</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>subl</string>
+				</array>
+			</dict>
+		</array>

@@ -1,12 +1,14 @@
 import {Element} from "org/mdspex/ASTNodes";
-import {ElementType} from "org/mdspex/ASTNodes";
 import {CatcodeMap} from "org/mdspex/Category";
 import {DefaultExtensions} from "org/mdspex/DefaultExtensions";
+import {ElementAnchorWithScope} from "org/mdspex/ElementAnchor";
 import {Extension} from "org/mdspex/Extension";
 import {ExtensionContext} from "org/mdspex/Extension";
-import {InputSource} from "org/mdspex/InputSource";
-import {Token} from "org/mdspex/Token";
+import {ExtensionType} from "org/mdspex/Extension";
 import {OutputProvider} from "org/mdspex/Extension";
+import {InputSource} from "org/mdspex/InputSource";
+import {MDSpexIndex} from "org/mdspex/MDSpexIndex";
+import {Token} from "org/mdspex/Token";
 
 export public interface ~ActiveExtension<T extends Element> {
 	extension: Extension;
@@ -33,7 +35,17 @@ export public interface IProcessorState {
 
 	get activeInlineExtension(): ActiveExtension<Element>
 	
+	get mdSpexIndex(): MDSpexIndex	
 	
+	/**
+	 * This must be by the extensions when creating or closing an element.
+	 * The parser cannot decide if a scope (defined by an element anchor)
+	 * is valid only for children of the element or, for instance in case
+	 * of headings, for succeeding elements. Also, the parse cannot know
+	 * when the scope is created: when creating the element or when 
+	 * closing it.
+	 */
+	currentScope: ElementAnchorWithScope;
 }
 
 
@@ -74,6 +86,10 @@ export public class ProcessorState implements IProcessorState {
 	@Override
 	public currentToken: Token;
 
+
+	@Override
+	@Final public mdSpexIndex = new MDSpexIndex();
+	
 	public setInputSource(inputSource: InputSource) {
 		this.inputSource = inputSource;
 	}
@@ -91,7 +107,7 @@ export public class ProcessorState implements IProcessorState {
 
 	public addExtensions(extensions: [Extension]) {
 		for (let ext of extensions) {
-			if (ext.elementType != ElementType.INLINE) {
+			if (ext.extensionType != ExtensionType.INLINE) {
 				if (ext.refByName) {
 					this.nameBlockOrParExtensions.set(ext.name, ext);
 				}
@@ -137,11 +153,12 @@ export public class ProcessorState implements IProcessorState {
 	public get activeExtension(): ActiveExtension<Element> {
 		return this.activeExtensions ? this.activeExtensions[this.activeExtensions.length - 1] : undefined;
 	}
-
+	
 	@Override
 	public get activeInlineExtension(): ActiveExtension<Element> {
 		let active = this.activeExtension;
-		if (active && active.extension.elementType != ElementType.INLINE) {
+		if (active && active.extension.extensionType != ExtensionType.INLINE)
+		{
 			return undefined;
 		}
 		return active;

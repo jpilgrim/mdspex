@@ -1,9 +1,9 @@
 import {Block} from "org/mdspex/ASTNodes";
 import {Element} from "org/mdspex/ASTNodes";
-import {ElementType} from "org/mdspex/ASTNodes";
 import {AbstractExtension} from "org/mdspex/Extension";
 import {ExtensionContext} from "org/mdspex/Extension";
 import {ExtensionEndMarker} from "org/mdspex/Extension";
+import {ExtensionType} from "org/mdspex/Extension";
 
 
 class BlockUL extends Block {
@@ -22,8 +22,8 @@ export public abstract class ListItems extends AbstractExtension {
 	public abstract get regEx(): RegExp
 
 	@Override
-	public get elementType(): ElementType {
-		return ElementType.BLOCK;
+	public get extensionType(): ExtensionType {
+		return ExtensionType.BLOCK
 	}
 
 	@Override

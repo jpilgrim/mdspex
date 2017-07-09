@@ -1,0 +1,15 @@
+import {ResourceBasedTest} from "org/mdspex/ResourceBasedTest";
+
+
+export public class SPEX1004_Linking extends ResourceBasedTest {
+
+	@Parameters("[{index}] {0}")
+    public static getSomeParameters() {
+        return [
+        	"li_01_anchor_basic",
+        ].map(s=>[s]);
+    }
+    
+    
+	
+}

@@ -1,8 +1,8 @@
 import {Element} from "org/mdspex/ASTNodes";
-import {ElementType} from "org/mdspex/ASTNodes";
 import {Category} from "org/mdspex/Category";
 import {CategorySwitch} from "org/mdspex/Category";
 import {Extension} from "org/mdspex/Extension";
+import {ExtensionType} from "org/mdspex/Extension";
 import {InputLocation} from "org/mdspex/InputSource";
 import {Processor} from "org/mdspex/Processor";
 import {ActiveExtension} from "org/mdspex/ProcessorState";
@@ -152,7 +152,7 @@ abstract class LexerState extends CategorySwitch<string, Token> {
 					return new ExtensionToken(ctrl, Category.CTRL, activeExts[i]);
 				}	
 			}
-			if (ext.elementType==ElementType.BLOCK) {
+			if (ext.extensionType==ExtensionType.BLOCK) {
 				break;
 			}
 		}

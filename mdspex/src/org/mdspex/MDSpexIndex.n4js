@@ -1,6 +1,6 @@
 import {Element} from "org/mdspex/ASTNodes";
-import {PQID} from "org/mdspex/IDs";
 import {FQID} from "org/mdspex/IDs";
+import {PQID} from "org/mdspex/IDs";
 import {QID} from "org/mdspex/IDs";
 import {matchSegment} from "org/mdspex/IDs";
 
@@ -24,9 +24,13 @@ export public interface IDScope {
 	get scopedAnchors(): [? extends Anchor]
 
 	/**
-	 * The parent scope, may be undefined if no parent scope is defined. 
+	 * The containing (parent) scope, may be undefined if no parent scope is defined. 
 	 */
-	get parentScope(): IDScope;
+	get containingScope(): IDScope;
+	
+	get topLevel(): boolean {
+		return ! this.containingScope;
+	}
 
 	/**
 	 * Returns the id of the element defining the scope.
@@ -44,7 +48,7 @@ export public interface IDScope {
 		if (candidates.length > 0) {
 			let scope: IDScope = this;
 			for (let seg of pid.reversedSegmentsWithoutLast) {
-				scope = scope.parentScope;
+				scope = scope.containingScope;
 				if (!scope || scope.id != seg) {
 					return [];
 				}
@@ -154,7 +158,7 @@ export public class MDSpexIndex {
 	 * the index, see SegmentMap.
 	 */
 	inversedFQIDsByType = new Map<string, SegmentMap>();
-
+	
 	/**
 	 * Adds given anchor to index, so that it is retrievable via a
 	 * PQID.
@@ -181,12 +185,14 @@ export public class MDSpexIndex {
 	 * search is performed.
 	 * 
 	 * Local anchors always shadow global anchors.
+	 * 
+	 * [SPEX-1004]
 	 */
 	public find(pqid: PQID, context: Element = undefined, firstOnly=false): [? extends Anchor] {
 
 		// local
 		if (context && context.anchor) {
-			let anchors = context.anchor.idscope.find(pqid, firstOnly);
+			let anchors = context.anchor.containingScope.find(pqid, firstOnly);
 			if (anchors.length > 0) {
 				return anchors;
 			}

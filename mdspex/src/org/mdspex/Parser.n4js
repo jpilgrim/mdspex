@@ -1,20 +1,20 @@
+import {N4Injector} from "n4js/lang/N4Injector";
 import {Block} from "org/mdspex/ASTNodes";
 import {CDATAContainer} from "org/mdspex/ASTNodes";
 import {Document} from "org/mdspex/ASTNodes";
-import {ElementType} from "org/mdspex/ASTNodes";
 import {Category} from "org/mdspex/Category";
 import {DocumentHandler} from "org/mdspex/DefaultExtensions";
 import {ParagraphHandler} from "org/mdspex/DefaultExtensions";
 import {PreformattedHandler} from "org/mdspex/DefaultExtensions";
 import {Extension} from "org/mdspex/Extension";
 import {ExtensionEndMarker} from "org/mdspex/Extension";
+import {ExtensionType} from "org/mdspex/Extension";
 import {InputSource} from "org/mdspex/InputSource";
 import {Lexer} from "org/mdspex/Lexer";
 import {Processor} from "org/mdspex/Processor";
 import {ActiveExtension} from "org/mdspex/ProcessorState";
 import {ProcessorState} from "org/mdspex/ProcessorState";
 import {Token} from "org/mdspex/Token";
-import {N4Injector} from "n4js/lang/N4Injector";
 
 function last(s: string): string {
 	if (s) {
@@ -60,7 +60,7 @@ export public class Parser extends Processor {
 		let tokenEntry: IteratorEntry<Token>;
 		this.createElement(this.documentHandler);
 		let document = this.processorState.activeExtension.element as Document;
-
+		
 		// Init parser
 		this.processorState.indentLevel = 0;
 		this.eolCount = 0;
@@ -88,7 +88,7 @@ export public class Parser extends Processor {
 					if (tokenExt.element) { // ctrl/cmd signaled end of element:
 						this.closeElement();
 					} else { // create new element
-						if (tokenExt.extension.elementType != ElementType.INLINE) {
+						if (tokenExt.extension.extensionType != ExtensionType.INLINE) {
 							this.popToBlock(this.processorState.indentLevel);
 						} else {
 							this.ensureCDATAContainer();
@@ -109,6 +109,11 @@ export public class Parser extends Processor {
 					this.eolCount = 0;
 			}
 		}
+		
+		// close all elements at the end
+		while (this.processorState.activeExtensions.length>0) {
+			this.closeElement();
+		}
 
 		return document;
 	}
@@ -117,8 +122,8 @@ export public class Parser extends Processor {
 		let nested = 0;
 		for (let i = this.processorState.activeExtensions.length - 1; i >= 0; i--) {
 			let ext = this.processorState.activeExtensions[i];
-			switch (ext.extension.elementType) {
-				case ElementType.BLOCK: return;
+			switch (ext.extension.extensionType) {
+				case ExtensionType.BLOCK: return;
 			}
 			nested++;
 			if (ext.extension.endMarker == ExtensionEndMarker.EOL) {
@@ -134,8 +139,9 @@ export public class Parser extends Processor {
 		let nested = 0;
 		for (let i = this.processorState.activeExtensions.length - 1; i >= 0; i--) {
 			let ext = this.processorState.activeExtensions[i];
-			switch (ext.extension.elementType) {
-				case ElementType.PAR: case ElementType.BLOCK: return;
+			switch (ext.extension.extensionType) {
+				case ExtensionType.PAR: 
+				case ExtensionType.BLOCK: return;
 			}
 			nested++;
 			if (ext.extension.endMarker == ExtensionEndMarker.SPACE) {
@@ -158,8 +164,7 @@ export public class Parser extends Processor {
 				&& activeExt.element.indentLevel <= indentLevel) {
 				return activeExt as ActiveExtension<Block>;
 			}
-			activeExt.extension.closeElement(activeExt.element, this.processorState.createExtensionContext());
-			this.processorState.activeExtensions.pop();
+			this.closeElement();
 		}
 		throw new Error("Document missing");
 	}
@@ -177,8 +182,8 @@ export public class Parser extends Processor {
 	}
 
 	closeElement() {
-		let activeElement = this.processorState.activeExtensions.pop();
-		activeElement.extension.closeElement(activeElement.element, this.processorState.createExtensionContext());
+		let {extension, element} = this.processorState.activeExtensions.pop();
+		extension.closeElement(element, this.processorState.createExtensionContext());
 	}
 	
 	/**

@@ -1,6 +1,5 @@
 import {Block} from "org/mdspex/ASTNodes";
 import {Element} from "org/mdspex/ASTNodes";
-import {ElementType} from "org/mdspex/ASTNodes";
 import {Inline} from "org/mdspex/ASTNodes";
 import {HTMLFactory} from "org/mdspex/HTMLFactory";
 import {Element as HTMLElement} from "org/mdspex/HTMLNodes";
@@ -10,6 +9,14 @@ import {CharacterToken} from "org/mdspex/Token";
 import {Token} from "org/mdspex/Token";
 import {Node} from "org/mdspex/ASTNodes";
 import {Link} from "org/mdspex/ASTNodes";
+import {CFormatting} from "org/mdspex/ASTNodes";
+
+export public enum ExtensionType {
+	BLOCK,
+	PAR,
+	INLINE
+}
+
 
 export public class OutputContext {
 
@@ -233,9 +240,9 @@ export public interface ~Extension extends ElementProvider {
 	get refByName(): boolean
 
 	/**
-	 * Returns element type.
+	 * Returns the extension type.
 	 */
-	get elementType(): ElementType
+	get extensionType(): ExtensionType
 
 	/**
 	 * Returns the end marker type, that is, how the lexer and parser detect the end
@@ -314,11 +321,11 @@ export public abstract class AbstractExtension implements Extension {
 	}
 
 	/**
-	 * Trims white spaces at the end of the created element if elementType is different from inline.
+	 * Trims white spaces at the end of the created element if elementType is different from CFORMATTING.
 	 */
 	@Override
 	public closeElement(element: Element, context: ExtensionContext) {
-		if (this.elementType == ElementType.INLINE) {
+		if (this.extensionType == ExtensionType.INLINE) {
 			return;
 		}
 		element.trim();
@@ -345,8 +352,8 @@ export public class NamedBlockCommand extends AbstractExtension {
 	}
 
 	@Override
-	public get elementType(): ElementType {
-		return ElementType.BLOCK;
+	public get extensionType(): ExtensionType {
+		return ExtensionType.BLOCK;
 	}
 
 	@Override
@@ -361,10 +368,12 @@ export public class NamedBlockCommand extends AbstractExtension {
 	public createElement(context: ExtensionContext): Element {
 		return new Block(this.name, context.indentLevel + 1, context.currentElement);
 	}
-
 }
 
-export public class InlineFormatting extends AbstractExtension {
+/**
+ * Base class for inline or character formatting extensions
+ */
+export public abstract class InlineFormatting extends AbstractExtension {
 
 	@Final
 	ctrlChar: string;
@@ -377,12 +386,12 @@ export public class InlineFormatting extends AbstractExtension {
 		this.ctrlChar = ctrlChar;
 		this.name = name;
 	}
-
+	
 	@Override
-	public get elementType(): ElementType {
-		return ElementType.INLINE;
+	public get extensionType(): ExtensionType {
+		return ExtensionType.INLINE;
 	}
-
+	
 	@Override
 	public get endMarker(): ExtensionEndMarker {
 		return ExtensionEndMarker.CTRL;
@@ -411,9 +420,22 @@ export public class InlineFormatting extends AbstractExtension {
 		return this.matchStart(context);
 	}
 
+
+}
+
+export public class InlineExtension extends InlineFormatting {
+	
 	@Override
 	public createElement(context: ExtensionContext): Element {
 		return new Inline(this.name, context.indentLevel, context.currentElement);
 	}
 }
 
+export public class FormattingExtension extends InlineFormatting {
+	
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		return new CFormatting(this.name, context.indentLevel, context.currentElement);
+	}
+}
+	

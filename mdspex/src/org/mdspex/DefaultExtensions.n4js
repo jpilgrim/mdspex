@@ -1,14 +1,14 @@
 import {Document} from "org/mdspex/ASTNodes";
 import {Element} from "org/mdspex/ASTNodes";
-import {ElementType} from "org/mdspex/ASTNodes";
 import {Paragraph} from "org/mdspex/ASTNodes";
 import {AbstractExtension} from "org/mdspex/Extension";
 import {AbstractOutputProvider} from "org/mdspex/Extension";
 import {Extension} from "org/mdspex/Extension";
 import {ExtensionContext} from "org/mdspex/Extension";
 import {ExtensionEndMarker} from "org/mdspex/Extension";
+import {ExtensionType} from "org/mdspex/Extension";
+import {FormattingExtension} from "org/mdspex/Extension";
 import {IdentityProvider} from "org/mdspex/Extension";
-import {InlineFormatting} from "org/mdspex/Extension";
 import {NamedBlockCommand} from "org/mdspex/Extension";
 import {OutputContext} from "org/mdspex/Extension";
 import {OutputProvider} from "org/mdspex/Extension";
@@ -25,8 +25,8 @@ export public class DefaultExtensions {
 		this.extensions.push(new ATXHeading());
 		this.extensions.push(new BulletListItems());
 		this.extensions.push(new DashListItems());
-		this.extensions.push(new InlineFormatting('*', 'strong'));
-		this.extensions.push(new InlineFormatting('_', 'em'));
+		this.extensions.push(new FormattingExtension('*', 'strong'));
+		this.extensions.push(new FormattingExtension('_', 'em'));
 
 	}
 
@@ -46,8 +46,8 @@ export public class DocumentHandler extends AbstractExtension {
 	}
 
 	@Override
-	public get elementType(): ElementType {
-		return ElementType.BLOCK;
+	public get extensionType(): ExtensionType {
+		return ExtensionType.BLOCK;
 	}
 
 	@Override
@@ -71,8 +71,8 @@ export public class ParagraphHandler extends AbstractExtension {
 	}
 
 	@Override
-	public get elementType(): ElementType {
-		return ElementType.PAR;
+	public get extensionType(): ExtensionType {
+		return ExtensionType.PAR;
 	}
 
 	@Override
@@ -118,8 +118,8 @@ export public class PreformattedHandler extends AbstractExtension {
 	}
 
 	@Override
-	public get elementType(): ElementType {
-		return ElementType.PAR;
+	public get extensionType(): ExtensionType {
+		return ExtensionType.PAR;
 	}
 
 	@Override

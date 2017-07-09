@@ -8,12 +8,12 @@
 # hash esc \###
 _______________________________________
 <spex>
-<h1>single closing</h1>
-<h2>more closing</h2>
-<h3>spaces closing</h3>
-<h4>spaces before and closing</h4>
-<h5>more spaces before and closing</h5>
-<h2>hash and ### char</h2>
-<h1>hash no space#</h1>
-<h1>hash esc ###</h1>
+<h1 id="sec:single_closing">single closing</h1>
+<h2 id="sec:single_closing.more_closing">more closing</h2>
+<h3 id="sec:single_closing.more_closing.spaces_closing">spaces closing</h3>
+<h4 id="sec:single_closing.more_closing.spaces_closing.spaces_before_and_closing">spaces before and closing</h4>
+<h5 id="sec:single_closing.more_closing.spaces_closing.spaces_before_and_closing.more_spaces_before_and_closing">more spaces before and closing</h5>
+<h2 id="sec:single_closing.hash_and_char">hash and ### char</h2>
+<h1 id="sec:hash_no_space">hash no space#</h1>
+<h1 id="sec:hash_esc">hash esc ###</h1>
 </spex>
