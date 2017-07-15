@@ -8,21 +8,17 @@ export public class ElementAchorTests {
 
 	@Test
 	public testAnchorFQID_Simple() {
-		let b = new Block("e", 0, doc, "type", "id");
+		let b = new Block("e", 0, doc);
+		b.setAnchor("type", "id", undefined);
 		Assert.equal(b.anchor.type, "type");
 		Assert.equal(b.anchor.id, "id");
 		Assert.equal(b.anchor.fqid.toString(), "type:id");
 	}
 
 	@Test
-	public testAnchorFQID_Norm1() {
-		let b = new Block("e", 0, doc, "type", " id ");
-		Assert.equal(b.anchor.fqid.toString(), "type:id");
-	}
-
-	@Test
 	public testAnchorFQID_Norm2() {
-		let b = new Block("e", 0, doc, "type", "..i!!d??");
+		let b = new Block("e", 0, doc);
+		b.setAnchor("type", "..i!!d??", undefined);
 		Assert.equal(b.anchor.fqid.toString(), "type:i_d");
 	}
 
