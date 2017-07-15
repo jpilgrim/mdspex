@@ -189,3 +189,4 @@ export public abstract class ResourceBasedOutputTest implements IBasicResourceBa
 		}
 	}
 }
+

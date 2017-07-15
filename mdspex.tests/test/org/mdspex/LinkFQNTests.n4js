@@ -1,0 +1,25 @@
+import {LinkFQN} from "org/mdspex/QualifiedNames";
+import {Assert} from "n4/mangel/assert/Assert";
+
+export public class LinkFQNTests {
+
+	@Test
+	test() {
+		let fqn = new LinkFQN("type", ["id"]);
+		Assert.equal(fqn.type, "type");
+		Assert.equal(fqn.lastSegment, "id");
+		Assert.equal(fqn.toString(), "type:id");
+		
+		for (let s of fqn.segments) {
+			Assert.equal(s, "id");
+		}
+		for (let s of fqn.reversedSegments) {
+			Assert.equal(s, "id");
+		}
+		for (let s of fqn.reversedSegmentsWithoutLast) {
+			Assert.fail("should not be called, s is " + s);
+		}
+		
+	}
+
+}

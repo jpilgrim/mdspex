@@ -1,7 +1,7 @@
 import {ElementAnchor} from "org/mdspex/ElementAnchor";
 import {ElementAnchorWithScope} from "org/mdspex/ElementAnchor";
-import {ContainedFQID} from "org/mdspex/IDs";
-import {FQID} from "org/mdspex/IDs";
+import {ContainedFQN} from "org/mdspex/QualifiedNames";
+import {FQN} from "org/mdspex/QualifiedNames";
 
 
 export public function is(node: Node, name: string): boolean {
@@ -178,7 +178,7 @@ export public abstract class Element extends Node {
 	indentLevel: int;
 
 	/**
-	 * Only set if this element has an ID and can be linked to, 
+	 * Only set if this element has an name and can be linked to, 
 	 * i.e. it is an anchor.
 	 */
 	anchor: ElementAnchor;
@@ -200,17 +200,17 @@ export public abstract class Element extends Node {
 	/**
 	 * Sets the anchor of the element. This can often be done only
 	 * when the element is to be closed (by the parse), since the
-	 * information required to compute the ID may not be present earlier.
+	 * information required to compute the name may not be present earlier.
 	 */
-	setAnchor(type: string, simpleID: string, containingScope: ElementAnchorWithScope, definesScopeItself=false) {
+	setAnchor(type: string, simpleName: string, containingScope: ElementAnchorWithScope, definesScopeItself=false) {
 		let ctor: constructor{ElementAnchor} = (definesScopeItself ? ElementAnchorWithScope : ElementAnchor);
-		this.anchor = new ctor({element: this, id: simpleID, type: type, containingScope: containingScope});
+		this.anchor = new ctor({element: this, id: simpleName, type: type, containingScope: containingScope});
 	}
 
-	get fqid(): ContainedFQID {
+	get fqn(): ContainedFQN {
 
 		if (this.anchor) {
-			return this.anchor.fqid;
+			return this.anchor.fqn;
 		}
 		return undefined;
 	}
@@ -222,7 +222,7 @@ export public abstract class Element extends Node {
 				this.attributes.map(a => " " + a.name + '= "' + a.value + '"').join("") : ""));
 		
 		if (this.anchor) {
-			parts.push(' id="' + this.anchor.fqid+'"');
+			parts.push(' id="' + this.anchor.fqn+'"');
 		}
 		
 		if (this.hasNodes) {
@@ -381,13 +381,13 @@ export public class CFormatting extends CDATAContainer {
 
 export public class Link extends Inline {
 
-	constructor(indentLevel: int, parent: Element, targetPQID: string) {
+	constructor(indentLevel: int, parent: Element, targetPQN: string) {
 		super("link", indentLevel, parent);
-		this.setAttribute("pqid", targetPQID);
+		this.setAttribute("pqn", targetPQN);
 	}
 
-	public resolve(fqid: FQID) {
-		this.setAttribute("fqid", fqid.toString());
+	public resolve(fqn: FQN) {
+		this.setAttribute("fqn", fqn.toString());
 	}
 }
 

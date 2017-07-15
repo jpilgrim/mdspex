@@ -1,0 +1,91 @@
+/**
+ * Copyright (c) 2017 Jens von Pilgrim.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ */
+import {SmartEqual} from "org/mdspex/SmartEqual";
+import {Assert} from "n4/mangel/assert/Assert";
+
+function assertDiff(actual: string, expected: string, actualResult: string, expectedResult: string) {
+	let se = new SmartEqual(actual, expected);
+	Assert.equal(se.actualDiff, actualResult, se.diffMsg);
+	Assert.equal(se.expectedDiff, expectedResult, se.diffMsg);
+
+	se = new SmartEqual(expected, actual);
+	Assert.equal(se.expectedDiff, actualResult, "Inv: " + se.diffMsg);
+	Assert.equal(se.actualDiff, expectedResult, "Inv: " + se.diffMsg);
+}
+
+function assertDiffVar(actual: string, expected: string, actualResult: string, expectedResult: string) {
+	let se = new SmartEqual(actual, expected, true);
+	Assert.equal(se.actualDiff, actualResult, se.diffMsg);
+	Assert.equal(se.expectedDiff, expectedResult, se.diffMsg);
+}
+
+export public class SmartEqualTests {
+
+	@Test
+	testEquals() {
+		Assert.isTrue(new SmartEqual("", "").equal);
+		Assert.isTrue(new SmartEqual("a", "a").equal);
+		Assert.isTrue(new SmartEqual("abcde", "abcde").equal);
+	}
+
+	@Test
+	testNotEqualsEmpty() {
+		assertDiff("x", "", "[x]", "[]");
+	}
+
+	@Test
+	testNotEqualsSameLength() {
+		assertDiff("x", "y", "[x]", "[y]");
+	}
+
+	@Test
+	testNotEqualsSamePrefix() {
+		assertDiff("x", "xy", "x[]", "x[y]");
+	}
+
+	@Test
+	testNotEqualsSamePrefixAndSuffix() {
+		assertDiff("axb", "ayb", "a[x]b", "a[y]b");
+		assertDiff("aaaxxxbbb", "aaayyybbb", "aaa[xxx]bbb", "aaa[yyy]bbb");
+		assertDiff("aaaaaaxxxxxxbbbbbb", "aaaaaayyyyyybbbbbb", "aaaaaa[xxxxxx]bbbbbb", "aaaaaa[yyyyyy]bbbbbb");
+		assertDiff("aaaaaaxxxxxxbbbbbb", "aaaaaayyyyyybbbbbb", "aaaaaa[xxxxxx]bbbbbb", "aaaaaa[yyyyyy]bbbbbb");
+	}
+
+	@Test
+	testNotEqualsSkipShortMatches() {
+		assertDiff("a1b2", "aybz", "a[1b2]", "a[ybz]");
+		assertDiff("a1bb2", "aybbz", "a[1bb2]", "a[ybbz]");
+		assertDiff("a1bbb2", "aybbbz", "a[1]bbb[2]", "a[y]bbb[z]");
+	}
+
+	@Test
+	testNotEqualsDiffHasDiffLength() {
+		assertDiff("axxb", "ayb", "a[xx]b", "a[y]b");
+	}
+
+	@Test
+	testNotEqualsDiffHasDiffLength2() {
+		assertDiff("a1bbb2ccc", "ayyybbbzzzzccc", "a[1]bbb[2]ccc", "a[yyy]bbb[zzzz]ccc");
+	}
+
+	@Test
+	testWithVar() {
+		Assert.isTrue(new SmartEqual('id="5"', 'id="~a"', true).equal);
+		Assert.isTrue(new SmartEqual('id="5"', 'id="~var"', true).equal);
+		Assert.isTrue(new SmartEqual('id="5" id="16"', 'id="~var" id="~val"', true).equal);
+		Assert.isTrue(new SmartEqual('id="5" id="16"', 'id="~" id="~"', true).equal);
+	}
+
+	@Test
+	testDiffVar() {
+		assertDiffVar('id="123" same="456"', 'id="~a" same="~a"', 'id="123" same="[456]"', 'id="123" same="[123]"');
+		assertDiffVar('id="123" some="123"', 'id="~a" same="~a"', 'id="123" s[o]me="123"', 'id="123" s[a]me="123"');
+		assertDiffVar('id="123" some="456"', 'id="~a" same="~a"', 'id="123" s[o]me="[456]"', 'id="123" s[a]me="[123]"');
+	}
+
+}

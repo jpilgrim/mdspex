@@ -1,7 +1,7 @@
 import {Assert} from "n4/mangel/assert/Assert";
-import {matchSegment} from "org/mdspex/IDs";
+import {matchSegment} from "org/mdspex/QualifiedNames";
 
-export public class ID_matchSegment_Tests {
+export public class MatchSegmentTests {
 
 	@Test
 	testNonRegEx() {

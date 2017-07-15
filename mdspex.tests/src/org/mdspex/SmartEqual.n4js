@@ -1,0 +1,210 @@
+/**
+ * Copyright (c) 2017 Jens von Pilgrim.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ */
+import {Assert} from "n4/mangel/assert/Assert";
+
+const diffStart = "[";
+const diffEnd = "]";
+
+/**
+ * Does a smart equal check considering variables.
+ * A "variable" is a variable part of the string, which must be
+ * enclosed in single or double quotes and starts with a tilde "~".
+ * This can be used to make tests robust against IDs which
+ * vary from time to time. E.g., the following two strings match:
+ * 		my id="~someID"
+ * 		my id="0x5f4e"
+ *
+ * However, the following strings do NOT match:
+ * 		my id="~someID" another="~someID"
+ * 		my id="0x5f4e" another="0x2222"
+ * since the same variable must have the same value.
+ *
+ * If a variable only consists of a tilde, its content is not compared. 
+ * That is
+ * 		my id="~" another="~"
+ * 		my id="0x5f4e" another="0x2222"
+ * match.
+ *
+ * The output is a smart comparison, creating a diff similar to JUnit.
+ */
+export public class SmartEqual {
+
+	/**
+	 * Compares two strings and throws with a nice comparison.
+	 * Variables are not recognized.
+	 */
+	public static equal(actual: string, expected: string) {
+		let se = new SmartEqual(actual, expected);
+		if (!se.equal) {
+			Assert.fail(se.diffMsg);
+		}
+	}
+
+	/**
+	 * Compares two strings and throws with a nice comparison.
+	 * Variables are recognized.
+	 */
+	public static equalVars(actual: string, expected: string) {
+		let se = new SmartEqual(actual, expected, true);
+		if (!se.equal) {
+			Assert.fail(se.diffMsg);
+		}
+	}
+
+	@Final
+	variables = new Map<string, string>();
+
+	@Final
+	actual: string;
+
+	@Final
+	expected: string;
+
+	@Final
+	equal: boolean;
+
+	@Final
+	recognizeVariables: boolean;
+
+	ia = 0;
+	ie = 0;
+	actualDiff = "";
+	expectedDiff = "";
+
+	/**
+	 * Do not call directly, use static methods instead.
+	 */
+	constructor(actual: string, expected: string, recognizeVariables = false) {
+		this.actual = actual;
+		this.expected = expected;
+		this.recognizeVariables = recognizeVariables;
+		this.equal = this.exec();
+	}
+
+	get diffMsg(): string {
+		return "<<<<<<< actual\n" + this.actualDiff + "\n=====\n" + this.expectedDiff + "\n>>>>>>> expected";
+	}
+
+	private exec(): boolean {
+		if (this.actual == this.expected) { // quick
+			this.actualDiff = this.actual;
+			this.expectedDiff = this.expected;
+			return true;
+		}
+
+		let failure = false;
+		let prev = "";
+		while (this.ia < this.actual.length && this.ie < this.expected.length) {
+			let ce = this.expected.charAt(this.ie++);
+			if (this.recognizeVariables && ce == "~" && (prev == "\"" || prev == "'")) {
+				let varname = this.getVariableNameFromExpected(prev);
+				let actualValue = this.getActualValue(prev);
+				if (varname != undefined && actualValue != undefined) {
+					let expectedValue = this.variables.get(varname);
+					if (expectedValue && expectedValue != actualValue) {
+						this.actualDiff += diffStart + actualValue + diffEnd;
+						this.expectedDiff += diffStart + expectedValue + diffEnd;
+						failure = true;
+					} else {
+						if (varname && expectedValue == undefined) {
+							this.variables.set(varname, actualValue);
+							expectedValue = actualValue;
+						}
+						;
+						this.expectedDiff += expectedValue;
+						this.actualDiff += actualValue;
+					}
+					prev = "";
+					continue;
+				}
+			}
+			let ca = this.actual.charAt(this.ia++);
+			if (ca == ce) {
+				this.actualDiff += ca;
+				this.expectedDiff += ca;
+				prev = ca;
+			} else {
+				failure = true;
+				this.actualDiff += diffStart + ca;
+				this.expectedDiff += diffStart + ce;
+
+				let [nma, nme] = this.findNextMatching();
+				this.actualDiff += this.actual.substring(this.ia, nma);
+				this.expectedDiff += this.expected.substring(this.ie, nme);
+				this.ia = nma;
+				this.ie = nme;
+				this.actualDiff += diffEnd;
+				this.expectedDiff += diffEnd;
+			}
+		}
+		if (this.ia < this.actual.length) {
+			failure = true;
+			this.actualDiff += diffStart;
+			this.expectedDiff += diffStart;
+			this.actualDiff += this.actual.substring(this.ia);
+			this.actualDiff += diffEnd;
+			this.expectedDiff += diffEnd;
+		}
+		if (this.ie < this.expected.length) {
+			failure = true;
+			this.actualDiff += diffStart;
+			this.expectedDiff += diffStart;
+			this.expectedDiff += this.expected.substring(this.ie);
+			this.actualDiff += diffEnd;
+			this.expectedDiff += diffEnd;
+		}
+		return !failure;
+
+	}
+
+	getActualValue(quote: string): string {
+		let i = this.actual.indexOf(quote, this.ia);
+		if (i >= 0) {
+			let v = this.actual.substring(this.ia, i);
+			this.ia = i;
+			return v;
+		}
+		return undefined;
+	}
+
+	getVariableNameFromExpected(quote: string): string {
+		let i = this.expected.indexOf(quote, this.ie);
+		if (i >= 0) {
+			let v = this.expected.substring(this.ie, i);
+			this.ie = i;
+			return v;
+		}
+		return undefined;
+	}
+
+	findNextMatching(): [int] {
+		let to = Math.min(this.actual.length - this.ia, this.expected.length - this.ie);
+		for (let k = 0; k < to; k++) {
+			for (let i = 0; i < 10; i++) {
+				if (this.groupMatch(this.ia + i + k, this.ie + k)) {
+					return [this.ia+i+k, this.ie+k];
+				}
+				if (k + i != 0 && this.groupMatch(this.ia + k, this.ie + i + k)) {
+					return [this.ia+k, this.ie+i+k];
+				}
+			}
+		}
+		return [this.actual.length, this.expected.length];
+	}
+
+	groupMatch(ga: int, ge: int) {
+		for (let i = 0; i < 3; i++) {
+			if (this.actual.charAt(ga + i) != this.expected.charAt(ge + i)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+}
+

@@ -1,6 +1,6 @@
 import {Element} from "org/mdspex/ASTNodes";
 import {normalizeSegment} from "org/mdspex/ASTNodes";
-import {ContainedFQID} from "org/mdspex/IDs";
+import {ContainedFQN} from "org/mdspex/QualifiedNames";
 import {Anchor} from "org/mdspex/MDSpexIndex";
 import {IDScope} from "org/mdspex/MDSpexIndex";
 /**
@@ -23,7 +23,7 @@ export public class ElementAnchor implements Anchor {
 	public id: string;
 
 	/**
-	 * The type of the id, cf. PQID for details.
+	 * The type of the id, cf. PQN for details.
 	 */
 	@Final
 	@Override
@@ -38,9 +38,9 @@ export public class ElementAnchor implements Anchor {
 	}
 
 	@Override
-	public get fqid(): ContainedFQID {
+	public get fqn(): ContainedFQN {
 		let scope = this.containingScope;
-		return new ContainedFQID(this.type, this.id, scope?scope.fqid:undefined);
+		return new ContainedFQN(this.type, this.id, scope?scope.fqn:undefined);
 	}
 }
 
@@ -51,9 +51,9 @@ export class ElementAnchorWithScope extends ElementAnchor implements IDScope {
 	public scopedAnchors: [ElementAnchor] = [];
 	
 	@Override
-	public get fqid(): ContainedFQID {
-		return new ContainedFQID(this.type, this.id, 
-			this.containingScope?this.containingScope.fqid:undefined
+	public get fqn(): ContainedFQN {
+		return new ContainedFQN(this.type, this.id, 
+			this.containingScope?this.containingScope.fqn:undefined
 		);
 	}
 	

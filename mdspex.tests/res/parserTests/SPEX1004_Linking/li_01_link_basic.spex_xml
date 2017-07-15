@@ -1,0 +1,9 @@
+# SecA
+# SecB
+[SecA]
+_______________________________________
+<spex>
+<h1 id="sec:SecA">Sec</h1>
+<h2 id="sec:SecB">Sec</h1>
+<link target="sec:SecA"/>
+</spex>

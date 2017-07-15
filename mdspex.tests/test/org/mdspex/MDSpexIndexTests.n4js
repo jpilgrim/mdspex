@@ -1,31 +1,31 @@
-import {FQID} from "org/mdspex/IDs";
-import {PQID} from "org/mdspex/IDs";
+import {FQN} from "org/mdspex/QualifiedNames";
+import {PQN} from "org/mdspex/QualifiedNames";
 import {Anchor} from "org/mdspex/MDSpexIndex";
 import {MDSpexIndex} from "org/mdspex/MDSpexIndex";
 import {Assert} from "n4/mangel/assert/Assert";
 import {SegmentMap} from "org/mdspex/MDSpexIndex";
 
-function ta(fqid: string): Anchor {
-	return new TestAnchor(fqid);
+function ta(fqn: string): Anchor {
+	return new TestAnchor(fqn);
 }
 
 class TestAnchor implements Anchor {
 
 	@Override
 	@Final
-	public fqid: FQID;
-	constructor(fqid: string) {
-		this.fqid = FQID.parseString(fqid);
+	public fqn: FQN;
+	constructor(fqn: string) {
+		this.fqn = FQN.parseString(fqn);
 	}
 
 	@Override
 	public get type(): string {
-		return this.fqid.type;
+		return this.fqn.type;
 	}
 
 	@Override
 	public get id(): string {
-		return this.fqid.lastSegment;
+		return this.fqn.lastSegment;
 	}
 }
 
@@ -36,7 +36,7 @@ export public class TestAnchorTest {
 		let a = ta("sec:My.Main.Header");
 		Assert.equal(a.id, "Header");
 		Assert.equal(a.type, "sec");
-		Assert.equal(a.fqid.toString(), "sec:My.Main.Header");
+		Assert.equal(a.fqn.toString(), "sec:My.Main.Header");
 	}
 }
 
@@ -59,10 +59,10 @@ export public class MDSpexIndexBasicTests {
 		let index = new MDSpexIndex();
 		let a = ta("sec:My.Main.Header");
 		index.add(a);
-		Assert.equal(index.find(PQID.parseString("sec:My.Main.Header"))[0], a);
-		Assert.equal(index.find(PQID.parseString("sec:My.Main.HeaderX")).length, 0);
-		Assert.equal(index.find(PQID.parseString("eq:My.Main.HeaderX")).length, 0);
-		Assert.equal(index.find(PQID.parseString("sec:My.Main.Header.Sub")).length, 0);
+		Assert.equal(index.find(PQN.parseString("sec:My.Main.Header"))[0], a);
+		Assert.equal(index.find(PQN.parseString("sec:My.Main.HeaderX")).length, 0);
+		Assert.equal(index.find(PQN.parseString("eq:My.Main.HeaderX")).length, 0);
+		Assert.equal(index.find(PQN.parseString("sec:My.Main.Header.Sub")).length, 0);
 	}
 }
 
@@ -76,17 +76,17 @@ export public class MDSpexIndexTests {
 		this.index.add(this.b);
 	}
 
-	assertFind(pqidString: string, expect=this.a) {
-		let pqid = PQID.parseString(pqidString);
-		let re = this.index.find(pqid);
-		Assert.equal(re.length, 1, "find(" + pqid + ") returned " + re.length + " hits, expected 1.");
-		Assert.equal(re[0], expect, "wrong entry found for " + pqid);
+	assertFind(pqnString: string, expect=this.a) {
+		let pqn = PQN.parseString(pqnString);
+		let re = this.index.find(pqn);
+		Assert.equal(re.length, 1, "find(" + pqn + ") returned " + re.length + " hits, expected 1.");
+		Assert.equal(re[0], expect, "wrong entry found for " + pqn);
 	}
 
-	assertFindNot(pqidString: string) {
-		let pqid = PQID.parseString(pqidString);
-		let re = this.index.find(pqid);
-		Assert.equal(re.length, 0, "find('" + pqid + "') returned " + re.length + " hits, expected no hits.");
+	assertFindNot(pqnString: string) {
+		let pqn = PQN.parseString(pqnString);
+		let re = this.index.find(pqn);
+		Assert.equal(re.length, 0, "find('" + pqn + "') returned " + re.length + " hits, expected no hits.");
 	}
 
 	@Test
@@ -125,14 +125,14 @@ export public class MDSpexPerformanceTests {
 	index = new MDSpexIndex();
 	count = 0;
 
-	assertFind(pqidString: string) {
-		let pqid = PQID.parseString(pqidString);
-		let re = this.index.find(pqid);
-		Assert.equal(re.length, 1, "find(" + pqid + ") returned " + re.length + " hits, expected 1.");
+	assertFind(pqnString: string) {
+		let pqn = PQN.parseString(pqnString);
+		let re = this.index.find(pqn);
+		Assert.equal(re.length, 1, "find(" + pqn + ") returned " + re.length + " hits, expected 1.");
 	}
 	
-	add(fqidString: string) {
-		this.index.add(ta(fqidString));
+	add(fqnString: string) {
+		this.index.add(ta(fqnString));
 		this.count++;
 	}
 

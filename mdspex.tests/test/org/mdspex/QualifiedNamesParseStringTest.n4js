@@ -1,16 +1,16 @@
 import {Assert} from "n4/mangel/assert/Assert";
-import {FQID} from "org/mdspex/IDs";
-import {PQID} from "org/mdspex/IDs";
+import {FQN} from "org/mdspex/QualifiedNames";
+import {PQN} from "org/mdspex/QualifiedNames";
 
-export public class FQID_parseString_Tests {
+export public class QualifiedNamesParseStringTest {
 
 	@Parameter
-    public fqidAsString: string
+    public fqnAsString: string
 
 	@Parameters("[{index}] {0}")
     public static getFqidsAsString() {
         return ["test:a", "test:a.b.c",
-        	"src:org.mdspex.FQID_parseString_Tests",
+        	"src:org.mdspex.FQN_parseString_Tests",
         	"bib:Gamma96a",
         	"sec:Section_1.Section_1_1.Section_1_1_a",
         	"eq:Section_1.Section_1_1.1"
@@ -18,23 +18,23 @@ export public class FQID_parseString_Tests {
     }
     
 	@Test
-	testParseStringFQID() {
-		let fqid = FQID.parseString(this.fqidAsString);
-		let s = fqid.toString();
-		Assert.equal(s, this.fqidAsString);	
+	testParseStringFQN() {
+		let fqn = FQN.parseString(this.fqnAsString);
+		let s = fqn.toString();
+		Assert.equal(s, this.fqnAsString);	
 	}
 
 }
 
-export public class PQID_parseString_Tests {
+export public class PQN_parseString_Tests {
 
 	@Parameter
-    public pqidAsString: string
+    public pqnAsString: string
 
 	@Parameters("[{index}] {0}")
     public static getPqidsAsString() {
         return ["test:a", "test:a.b.c",
-        	"src:org.mdspex.FQID_parseString_Tests",
+        	"src:org.mdspex.FQN_parseString_Tests",
         	"bib:Gamma96a",
         	"sec:Section_1.Section_1_1.Section_1_1_a",
         	"eq:Section_1.Section_1_1.1",
@@ -44,14 +44,14 @@ export public class PQID_parseString_Tests {
     }
     
 	@Test
-	testParseStringPQID() {
+	testParseStringPQN() {
 		try {
-			let pqid = PQID.parseString(this.pqidAsString);
-			var s = pqid.toString();
+			let pqn = PQN.parseString(this.pqnAsString);
+			var s = pqn.toString();
 		} catch (e) {
-			Assert.fail("Error processing " + this.pqidAsString + ": " + e);
+			Assert.fail("Error processing " + this.pqnAsString + ": " + e);
 		}
-		Assert.equal(s, this.pqidAsString);	
+		Assert.equal(s, this.pqnAsString);	
 	}
 
 }

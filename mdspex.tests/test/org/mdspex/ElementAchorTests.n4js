@@ -7,19 +7,19 @@ const doc = new Document();
 export public class ElementAchorTests {
 
 	@Test
-	public testAnchorFQID_Simple() {
+	public testAnchorFQN_Simple() {
 		let b = new Block("e", 0, doc);
 		b.setAnchor("type", "id", undefined);
 		Assert.equal(b.anchor.type, "type");
 		Assert.equal(b.anchor.id, "id");
-		Assert.equal(b.anchor.fqid.toString(), "type:id");
+		Assert.equal(b.anchor.fqn.toString(), "type:id");
 	}
 
 	@Test
-	public testAnchorFQID_Norm2() {
+	public testAnchorFQN_Norm2() {
 		let b = new Block("e", 0, doc);
 		b.setAnchor("type", "..i!!d??", undefined);
-		Assert.equal(b.anchor.fqid.toString(), "type:i_d");
+		Assert.equal(b.anchor.fqn.toString(), "type:i_d");
 	}
 
 }
