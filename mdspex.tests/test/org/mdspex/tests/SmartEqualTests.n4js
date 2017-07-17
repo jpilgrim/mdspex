@@ -19,7 +19,7 @@ function assertDiff(actual: string, expected: string, actualResult: string, expe
 }
 
 function assertDiffVar(actual: string, expected: string, actualResult: string, expectedResult: string) {
-	let se = new SmartEqual(actual, expected, true);
+	let se = new SmartEqual(actual, expected, undefined, true);
 	Assert.equal(se.actualDiff, actualResult, se.diffMsg);
 	Assert.equal(se.expectedDiff, expectedResult, se.diffMsg);
 }
@@ -75,10 +75,10 @@ export public class SmartEqualTests {
 
 	@Test
 	testWithVar() {
-		Assert.isTrue(new SmartEqual('id="5"', 'id="~a"', true).equal);
-		Assert.isTrue(new SmartEqual('id="5"', 'id="~var"', true).equal);
-		Assert.isTrue(new SmartEqual('id="5" id="16"', 'id="~var" id="~val"', true).equal);
-		Assert.isTrue(new SmartEqual('id="5" id="16"', 'id="~" id="~"', true).equal);
+		Assert.isTrue(new SmartEqual('id="5"', 'id="~a"', undefined, true).equal);
+		Assert.isTrue(new SmartEqual('id="5"', 'id="~var"', undefined, true).equal);
+		Assert.isTrue(new SmartEqual('id="5" id="16"', 'id="~var" id="~val"', undefined, true).equal);
+		Assert.isTrue(new SmartEqual('id="5" id="16"', 'id="~" id="~"', undefined, true).equal);
 	}
 
 	@Test

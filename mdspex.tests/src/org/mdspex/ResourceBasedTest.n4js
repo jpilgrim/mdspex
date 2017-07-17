@@ -1,3 +1,5 @@
+import {readFile} from "fs";
+import {N4Injector} from "n4js/lang/N4Injector";
 import {Document} from "org/mdspex/ASTNodes";
 import {DefaultExtensionBinder} from "org/mdspex/DefaultExtensionBinder";
 import {NoExtensionBinder} from "org/mdspex/DefaultExtensionBinder";
@@ -5,9 +7,7 @@ import {Element as HTMLElement} from "org/mdspex/HTMLNodes";
 import {InputSource} from "org/mdspex/InputSource";
 import {OutputProcessor} from "org/mdspex/OutputProcessor";
 import {Parser} from "org/mdspex/Parser";
-import {readFile} from "fs";
-import {Assert} from "n4/mangel/assert/Assert";
-import {N4Injector} from "n4js/lang/N4Injector";
+import {SmartEqual} from "org/mdspex/SmartEqual";
 import {delimiter} from "path";
 import {join} from "path";
 
@@ -90,19 +90,19 @@ export interface IResourceBasedTest extends IBasicResourceBasedTest {
 		// console.log(sae.source);
 		let doc = this.parse(sae.source);
 		let actual = doc.toXML();
-		try {
-			Assert.equal(actual, sae.expected, this.name);
-		} catch (e) {
-			console.log("_____________________________________");
-			console.log("Error test " + this.name);
-			console.log("_____________________________________");
-			console.log(sae.source);
-			console.log("______________\nExpected:");
-			console.log(sae.expected);
-			console.log("______________\nActual:");
-			console.log(actual);
-			throw e;
-		}
+//		try {
+			SmartEqual.equalVars(actual, sae.expected, this.name);
+//		} catch (e) {
+//			console.log("_____________________________________");
+//			console.log("Error test " + this.name);
+//			console.log("_____________________________________");
+//			console.log(sae.source);
+//			console.log("______________\nExpected:");
+//			console.log(sae.expected);
+//			console.log("______________\nActual:");
+//			console.log(actual);
+//			throw e;
+//		}
 	}
 }
 
@@ -172,21 +172,21 @@ export public abstract class ResourceBasedOutputTest implements IBasicResourceBa
 		// console.log(sae.source);
 		let root = this.parseAndOutput(sae.source);
 		let actual = root.outerHTML;
-		try {
-			Assert.equal(actual, sae.expected, this.name);
-		} catch (e) {
-			console.log("_____________________________________");
-			console.log("Error test " + this.name);
-			console.log("_____________________________________");
-			console.log(sae.source);
-			console.log("______________\nExpected:");
-			console.log(sae.expected);
-			console.log("______________\nActual:");
-			console.log(actual);
-			console.log("______________\nRoot:");
-			console.log(JSON.stringify(root))
-			throw e;
-		}
+//		try {
+			SmartEqual.equalVars(actual, sae.expected, this.name);
+//		} catch (e) {
+//			console.log("_____________________________________");
+//			console.log("Error test " + this.name);
+//			console.log("_____________________________________");
+//			console.log(sae.source);
+//			console.log("______________\nExpected:");
+//			console.log(sae.expected);
+//			console.log("______________\nActual:");
+//			console.log(actual);
+//			console.log("______________\nRoot:");
+//			console.log(JSON.stringify(root))
+//			throw e;
+//		}
 	}
 }
 

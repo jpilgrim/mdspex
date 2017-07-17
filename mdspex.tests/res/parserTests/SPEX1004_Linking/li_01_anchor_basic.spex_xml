@@ -3,7 +3,7 @@
 ### SubSubSec
 _______________________________________
 <spex>
-<h1 id="sec:Sec">Sec</h1>
-<h2 id="sec:Sec.SubSec">SubSec</h2>
-<h3 id="sec:Sec.SubSec.SubSubSec">SubSubSec</h3>
+<h1 id="~1">Sec</h1>
+<h2 id="~2">SubSec</h2>
+<h3 id="~3">SubSubSec</h3>
 </spex>

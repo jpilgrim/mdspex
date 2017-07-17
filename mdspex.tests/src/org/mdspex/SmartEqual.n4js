@@ -38,8 +38,8 @@ export public class SmartEqual {
 	 * Compares two strings and throws with a nice comparison.
 	 * Variables are not recognized.
 	 */
-	public static equal(actual: string, expected: string) {
-		let se = new SmartEqual(actual, expected);
+	public static equal(actual: string, expected: string, msg: string = undefined) {
+		let se = new SmartEqual(actual, expected, msg);
 		if (!se.equal) {
 			Assert.fail(se.diffMsg);
 		}
@@ -49,8 +49,8 @@ export public class SmartEqual {
 	 * Compares two strings and throws with a nice comparison.
 	 * Variables are recognized.
 	 */
-	public static equalVars(actual: string, expected: string) {
-		let se = new SmartEqual(actual, expected, true);
+	public static equalVars(actual: string, expected: string, msg: string = undefined) {
+		let se = new SmartEqual(actual, expected, msg, true);
 		if (!se.equal) {
 			Assert.fail(se.diffMsg);
 		}
@@ -75,19 +75,24 @@ export public class SmartEqual {
 	ie = 0;
 	actualDiff = "";
 	expectedDiff = "";
+	
+	@Final msg: string;
 
 	/**
 	 * Do not call directly, use static methods instead.
 	 */
-	constructor(actual: string, expected: string, recognizeVariables = false) {
+	constructor(actual: string, expected: string, msg: string = undefined, recognizeVariables = false) {
 		this.actual = actual;
 		this.expected = expected;
 		this.recognizeVariables = recognizeVariables;
+		this.msg = msg;
 		this.equal = this.exec();
 	}
 
 	get diffMsg(): string {
-		return "<<<<<<< actual\n" + this.actualDiff + "\n=====\n" + this.expectedDiff + "\n>>>>>>> expected";
+		let s = this.msg? this.msg + "\n" : "";
+		s += "<<<<<<< actual\n" + this.actualDiff + "\n=====\n" + this.expectedDiff + "\n>>>>>>> expected";
+		return s;
 	}
 
 	private exec(): boolean {

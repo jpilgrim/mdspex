@@ -3,7 +3,7 @@
 [SecA]
 _______________________________________
 <spex>
-<h1 id="sec:SecA">Sec</h1>
-<h2 id="sec:SecB">Sec</h1>
-<link target="sec:SecA"/>
+<h1 id="~1">SecA</h1>
+<h2 id="~2">SecB</h1>
+<link target="~1"/>
 </spex>
