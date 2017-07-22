@@ -1,8 +1,9 @@
 import {Element} from "org/mdspex/ASTNodes";
-import {normalizeSegment} from "org/mdspex/ASTNodes";
-import {ContainedFQN} from "org/mdspex/QualifiedNames";
 import {Anchor} from "org/mdspex/MDSpexIndex";
 import {IDScope} from "org/mdspex/MDSpexIndex";
+import {ContainedFQN} from "org/mdspex/QualifiedNames";
+import {SegmentMap} from "org/mdspex/MDSpexIndex";
+import {normalizeSegment} from "org/mdspex/ASTNodes";
 /**
  * Holds all information about ID and scopes of elements.
  */
@@ -14,13 +15,9 @@ export public class ElementAnchor implements Anchor {
 	@Final
 	public element: Element;
 
-	/**
-	 * ID of the element, this is used for linking and is usually translated to the attribute
-	 * "id". This id is normalized, i.e. special characters are replaced with underscores.
-	 */
 	@Final
 	@Override
-	public id: string;
+	public name: string
 
 	/**
 	 * The type of the id, cf. PQN for details.
@@ -34,14 +31,16 @@ export public class ElementAnchor implements Anchor {
 
 	@CovariantConstructor
 	constructor(@Spec spec: ~i~this) {
-		this.id = normalizeSegment(spec.id);
+		this.name = normalizeSegment(spec.name);
 	}
 
 	@Override
 	public get fqn(): ContainedFQN {
 		let scope = this.containingScope;
-		return new ContainedFQN(this.type, this.id, scope?scope.fqn:undefined);
+		return new ContainedFQN(this.type, this.name, scope?scope.fqn:undefined);
 	}
+	
+	
 }
 
 export class ElementAnchorWithScope extends ElementAnchor implements IDScope {
@@ -52,7 +51,7 @@ export class ElementAnchorWithScope extends ElementAnchor implements IDScope {
 	
 	@Override
 	public get fqn(): ContainedFQN {
-		return new ContainedFQN(this.type, this.id, 
+		return new ContainedFQN(this.type, this.name, 
 			this.containingScope?this.containingScope.fqn:undefined
 		);
 	}

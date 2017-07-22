@@ -9,10 +9,10 @@ export public class ElementAchorTests {
 	@Test
 	public testAnchorFQN_Simple() {
 		let b = new Block("e", 0, doc);
-		b.setAnchor("type", "id", undefined);
+		b.setAnchor("type", "name", undefined);
 		Assert.equal(b.anchor.type, "type");
-		Assert.equal(b.anchor.id, "id");
-		Assert.equal(b.anchor.fqn.toString(), "type:id");
+		Assert.equal(b.anchor.name, "name");
+		Assert.equal(b.anchor.fqn.toString(), "type:name");
 	}
 
 	@Test

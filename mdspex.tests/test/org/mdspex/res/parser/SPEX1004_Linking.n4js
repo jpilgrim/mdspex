@@ -7,6 +7,7 @@ export public class SPEX1004_Linking extends ResourceBasedTest {
     public static getSomeParameters() {
         return [
         	"li_01_anchor_basic",
+//        	"li_02_link_basic",
         ].map(s=>[s]);
     }
     

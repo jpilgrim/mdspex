@@ -160,6 +160,12 @@ export public abstract class Node {
 	
 	
 	public abstract get text(): string
+	
+	public get document(): Document {
+		if (this.parent)
+			return this.parent.document;
+		return undefined;
+	}
 
 }
 
@@ -176,6 +182,9 @@ export public abstract class Element extends Node {
 
 	@Final
 	indentLevel: int;
+	
+	@Final
+	id: string
 
 	/**
 	 * Only set if this element has an name and can be linked to, 
@@ -191,6 +200,9 @@ export public abstract class Element extends Node {
 		super(parent);
 		this.name = name;
 		this.indentLevel = indentLevel;
+		if (parent) {
+			this.id = parent.document.nextID;
+		}
 	}
 	
 	get hasNodes(): boolean {
@@ -204,7 +216,7 @@ export public abstract class Element extends Node {
 	 */
 	setAnchor(type: string, simpleName: string, containingScope: ElementAnchorWithScope, definesScopeItself=false) {
 		let ctor: constructor{ElementAnchor} = (definesScopeItself ? ElementAnchorWithScope : ElementAnchor);
-		this.anchor = new ctor({element: this, id: simpleName, type: type, containingScope: containingScope});
+		this.anchor = new ctor({element: this, name: simpleName, type: type, containingScope: containingScope});
 	}
 
 	get fqn(): ContainedFQN {
@@ -221,8 +233,8 @@ export public abstract class Element extends Node {
 		parts.push("<" + this.name + (this.attributes ?
 				this.attributes.map(a => " " + a.name + '= "' + a.value + '"').join("") : ""));
 		
-		if (this.anchor) {
-			parts.push(' id="' + this.anchor.fqn+'"');
+		if (this.id && this.anchor) { // only printout id for anchored elements
+			parts.push(' id="' + this.id+'"');
 		}
 		
 		if (this.hasNodes) {
@@ -463,6 +475,12 @@ export public class Attribute {
 
 @Final
 export public class Document extends Block {
+	
+	idcounter = 256;
+	
+	/**
+	 * 
+	 */
 	indexes: Map<string, [Element]>;
 
 	constructor() {
@@ -478,6 +496,19 @@ export public class Document extends Block {
 				}
 				return value;
 			});
+	}
+
+	/**
+	 * Increases the id counter and returns it as a hex string.
+	 */	
+	public get nextID(): string {
+		this.idcounter++
+		return this.idcounter.toString(16);
+	}
+	
+	@Override
+	public get document(): Document {
+		return this;
 	}
 
 }

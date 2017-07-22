@@ -9,12 +9,15 @@ export public interface Anchor {
 	 * Returns the type of the anchor.
 	 */
 	get type(): string
+	
+	/**
+	 * Returns the simple name of the anchor, i.e. the last segment of the fqn. 
+	 */
+	get name(): string;
 
 	/**
-	 * Returns the id of the anchor.
+	 * The FQN of the anchor.
 	 */
-	get id(): string;
-
 	get fqn(): FQN;
 }
 
@@ -33,23 +36,24 @@ export public interface IDScope {
 	}
 
 	/**
-	 * Returns the id of the element defining the scope.
+	 * Returns the simple name of the element defining the scope,
+	 * i.e. the last segment of the FQN.
 	 */
-	get id(): string;
+	get name(): string;
 
 	find(pid: PQN, firstOnly=false): [? extends Anchor] {
 		let candidates = firstOnly ?
 			[this.scopedAnchors.find(eq => {
-				return matchSegment(eq.id, pid.lastSegment) && (!pid.type || eq.type == pid.type);
+				return matchSegment(eq.name, pid.lastSegment) && (!pid.type || eq.type == pid.type);
 			})] :
 			this.scopedAnchors.filter(eq => {
-				return matchSegment(eq.id, pid.lastSegment) && (!pid.type || eq.type == pid.type);
+				return matchSegment(eq.name, pid.lastSegment) && (!pid.type || eq.type == pid.type);
 			});
 		if (candidates.length > 0) {
 			let scope: IDScope = this;
 			for (let seg of pid.reversedSegmentsWithoutLast) {
 				scope = scope.containingScope;
-				if (!scope || scope.id != seg) {
+				if (!scope || scope.name != seg) {
 					return [];
 				}
 			}

@@ -24,7 +24,7 @@ class TestAnchor implements Anchor {
 	}
 
 	@Override
-	public get id(): string {
+	public get name(): string {
 		return this.fqn.lastSegment;
 	}
 }
@@ -34,7 +34,7 @@ export public class TestAnchorTest {
 	@Test
 	test() {
 		let a = ta("sec:My.Main.Header");
-		Assert.equal(a.id, "Header");
+		Assert.equal(a.name, "Header");
 		Assert.equal(a.type, "sec");
 		Assert.equal(a.fqn.toString(), "sec:My.Main.Header");
 	}
