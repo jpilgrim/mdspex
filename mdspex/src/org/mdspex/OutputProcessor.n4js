@@ -16,6 +16,9 @@ export public class OutputProcessor extends Processor implements ASTSwitch<HTML.
 	
 	private context: OutputContext
 	
+	/**
+	 * Converts the given document (AST) into an HTML tree.
+	 */
 	public out(document: Document): HTML.Element {
 		this.context = new OutputContext({
 			 parentHTMLNode: null,
@@ -26,6 +29,10 @@ export public class OutputProcessor extends Processor implements ASTSwitch<HTML.
 		return this.processTree() as HTML.Element;
 	}
 	
+	/**
+	 * Recursively process the AST, current element is stored in
+	 * context.currentElement.
+	 */
 	private processTree(): HTML.Node {
 		let htmlNode = this.switch(this.context.currentElement); 
 		if (htmlNode) {

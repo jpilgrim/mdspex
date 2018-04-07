@@ -2,9 +2,9 @@ import {Assert} from "n4/mangel/assert/Assert";
 import {N4Injector} from "n4js/lang/N4Injector";
 import {NoExtensionBinder} from "org/mdspex/DefaultExtensionBinder";
 import {InputSource} from "org/mdspex/InputSource";
-import {Lexer} from "org/mdspex/Lexer";
 import {ProcessorState} from "org/mdspex/ProcessorState";
-import {Token} from "org/mdspex/Token";
+import {Lexer} from "org/mdspex/parser/Lexer";
+import {Token} from "org/mdspex/parser/Token";
 
 @GenerateInjector()
 @UseBinder(NoExtensionBinder)

@@ -1,7 +1,7 @@
 import {ProcessorState} from "org/mdspex/ProcessorState";
 
 
-export public class Processor {
+export public abstract class Processor {
 
 	private _processorState: ProcessorState;
 

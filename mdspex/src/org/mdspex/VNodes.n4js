@@ -76,7 +76,7 @@ export public class Element extends Node implements HTML.Element {
 	public get outerHTML(): string {
 		let s = "<" + this.nodeName;
 		if (this.attributes && this.attributes.length>0) {
-			s += " " + this.attributes._attributes.map(attr=>attr.name+'"'+attr.value+'"').join(" ");
+			s += " " + this.attributes._attributes.map(attr=>attr.name+'="'+attr.value+'"').join(" ");
 		}
 		if (this.childNodes) {
 			s += ">";

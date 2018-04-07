@@ -4,10 +4,12 @@ import {Document} from "org/mdspex/ASTNodes";
 import {DefaultExtensionBinder} from "org/mdspex/DefaultExtensionBinder";
 import {NoExtensionBinder} from "org/mdspex/DefaultExtensionBinder";
 import {Element as HTMLElement} from "org/mdspex/HTMLNodes";
+import {IndexProcessor} from "org/mdspex/IndexProcessor";
 import {InputSource} from "org/mdspex/InputSource";
+import {LinkProcessor} from "org/mdspex/LinkProcessor";
 import {OutputProcessor} from "org/mdspex/OutputProcessor";
-import {Parser} from "org/mdspex/Parser";
 import {SmartEqual} from "org/mdspex/SmartEqual";
+import {Parser} from "org/mdspex/parser/Parser";
 import {delimiter} from "path";
 import {join} from "path";
 
@@ -19,6 +21,7 @@ export public interface ~SourceAndExpectation {
 
 export interface IBasicResourceBasedTest {
 	
+	parser: Parser
 	
     get resSubFolderName(): string { return "parserTests" }
     
@@ -76,10 +79,24 @@ export interface IBasicResourceBasedTest {
 	}
 
 	protected parse(src: string): Document {
-		let parser = this.injector.create(Parser);
-		let doc = parser.parse(new InputSource(this.name, src));
+		this.parser = this.injector.create(Parser);
+		let doc = this.parser.parse(new InputSource(this.name, src));
 		return doc;
 	}
+
+	protected createIndex(doc: Document) {
+		let indexProcessor = this.injector.create(IndexProcessor);
+		indexProcessor.init(this.parser.processorState);
+		indexProcessor.run(doc);
+	}
+
+	protected link(doc: Document) {
+		let linkProcessor = this.injector.create(LinkProcessor);
+		linkProcessor.init(this.parser.processorState);
+		linkProcessor.run(doc);
+	}
+	
+	
 }
 
 export interface IResourceBasedTest extends IBasicResourceBasedTest {
@@ -89,6 +106,8 @@ export interface IResourceBasedTest extends IBasicResourceBasedTest {
 		let sae = await this.loadSourceAndExpectation(this.name);
 		// console.log(sae.source);
 		let doc = this.parse(sae.source);
+		this.createIndex(doc);
+		this.link(doc);
 		let actual = doc.toXML();
 //		try {
 			SmartEqual.equalVars(actual, sae.expected, this.name);
@@ -156,12 +175,21 @@ export public abstract class ResourceBasedOutputTest implements IBasicResourceBa
     
     protected parseAndOutput(src: string): HTMLElement {
 		let parser = this.injector.create(Parser);
-		let outputProcessor = this.injector.create(OutputProcessor);
 
 		let doc = parser.parse(new InputSource(this.name, src));
+
+		let indexProcessor = this.injector.create(IndexProcessor);
+		indexProcessor.init(parser.processorState);
+		indexProcessor.run(doc);
+
+		let linkProcessor = this.injector.create(LinkProcessor);
+		linkProcessor.init(parser.processorState);
+		linkProcessor.run(doc);
+		
+		let outputProcessor = this.injector.create(OutputProcessor);
 		outputProcessor.init(parser.processorState);
- 
-		let htmlnode = outputProcessor.out(doc);
+ 		let htmlnode = outputProcessor.out(doc);
+
 		return htmlnode;
 	}
     

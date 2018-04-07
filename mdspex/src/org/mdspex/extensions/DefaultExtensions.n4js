@@ -14,9 +14,18 @@ import {OutputContext} from "org/mdspex/Extension";
 import {OutputProvider} from "org/mdspex/Extension";
 import {Element as HTMLElement} from "org/mdspex/HTMLNodes";
 import {ATXHeading} from "org/mdspex/extensions/ATXHeadings";
+import {LinkExtension} from "org/mdspex/extensions/LinkExtension";
 import {BulletListItems} from "org/mdspex/extensions/ListItems";
 import {DashListItems} from "org/mdspex/extensions/ListItems";
 
+/**
+ * Default registered set of extension.
+ * 
+ * Additionally, default handlers for 
+ * paragraphs (ParagraphHandler), 
+ * pre-formatted code 
+ * and the document (DocumentHandler) are used.
+ */
 export public class DefaultExtensions {
 	
 	extensions: [Extension];
@@ -27,7 +36,7 @@ export public class DefaultExtensions {
 		this.extensions.push(new DashListItems());
 		this.extensions.push(new FormattingExtension('*', 'strong'));
 		this.extensions.push(new FormattingExtension('_', 'em'));
-
+		this.extensions.push(new LinkExtension());
 	}
 
 }

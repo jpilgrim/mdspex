@@ -3,18 +3,18 @@ import {Block} from "org/mdspex/ASTNodes";
 import {CDATAContainer} from "org/mdspex/ASTNodes";
 import {Document} from "org/mdspex/ASTNodes";
 import {Category} from "org/mdspex/Category";
-import {DocumentHandler} from "org/mdspex/DefaultExtensions";
-import {ParagraphHandler} from "org/mdspex/DefaultExtensions";
-import {PreformattedHandler} from "org/mdspex/DefaultExtensions";
 import {Extension} from "org/mdspex/Extension";
 import {ExtensionEndMarker} from "org/mdspex/Extension";
 import {ExtensionType} from "org/mdspex/Extension";
 import {InputSource} from "org/mdspex/InputSource";
-import {Lexer} from "org/mdspex/Lexer";
 import {Processor} from "org/mdspex/Processor";
 import {ActiveExtension} from "org/mdspex/ProcessorState";
 import {ProcessorState} from "org/mdspex/ProcessorState";
-import {Token} from "org/mdspex/Token";
+import {DocumentHandler} from "org/mdspex/extensions/DefaultExtensions";
+import {ParagraphHandler} from "org/mdspex/extensions/DefaultExtensions";
+import {PreformattedHandler} from "org/mdspex/extensions/DefaultExtensions";
+import {Lexer} from "org/mdspex/parser/Lexer";
+import {Token} from "org/mdspex/parser/Token";
 
 function last(s: string): string {
 	if (s) {
@@ -30,24 +30,51 @@ function <T>peek(array: [T]): T {
 	return undefined;
 }
 
+/**
+ * Parses an input source (InputSource) and produces the AST (root: Document).
+ * 
+ * The parser uses the extensions to create elements.
+ * These extensions are provided by the ProcessorState.
+ * Additionally, three handlers are used to create elements:
+ * 1. ParagraphHandler 
+ * 2. PreformattedHandler
+ * 3. DocumentHandler.
+ * (see fields for details)
+ */
 export public class Parser extends Processor {
 
 	@Inject
 	lexer: Lexer;
 
+	/**
+	 * This is the default if no other block extension is found
+	 * and the block is not indented to become a preformatted block.
+	 */
 	@Inject
 	paragraphHandler: ParagraphHandler;
 
+	/**
+	 * Used if a block has an extra indent but not specific block
+ 	 * extension is found.
+	 */
 	@Inject
 	preformattedHandler: PreformattedHandler;
 
+	/** 
+	 * Used for root element.
+	 */
 	@Inject
 	documentHandler: DocumentHandler;
+	
 	eolCount: int = 0;
 
 	@Inject
 	injector: N4Injector;
 	// workaround because @PerInjectionSingleton not implemented!
+	
+	/**
+	 * Called by the main application (e.g. CLI) class to parse the input.
+	 */
 	parse(inputSource: InputSource): Document {
 		this.init(this.injector.create(ProcessorState));
 

@@ -21,6 +21,18 @@ export public interface Anchor {
 	get fqn(): FQN;
 }
 
+export public interface Link {
+	/**
+	 * Returns the pqn of the link.
+	 */
+	get pqn(): string;
+	
+	/**
+	 * The target anchor, set after link processing.
+	 */
+	targetAnchor: Anchor;
+}
+
 export public interface IDScope {
 
 	/** The elements of that scope. */
@@ -151,9 +163,24 @@ export public class SegmentMap {
 		}
 		return false;
 	}
+	
+	get size(): int {
+		if (this.predecessors.size==0) {
+			return 1; // leaf
+		}
+		
+		let size = 0;
+		for (let sm of this.predecessors.values()) {
+			size += sm.size;
+		}
+		return size;
+	}
 
 }
 
+/**
+ * The index of anchors which can be referenced by links.
+ */
 export public class MDSpexIndex {
 	
 	/**
@@ -185,12 +212,14 @@ export public class MDSpexIndex {
 	}
 
 	/**
-	 * Finds an anchor by given pqn. If context is not given, then only a global
-	 * search is performed.
+	 * Finds an anchor by given pqn. 
+	 * If context is not given, then a global search is performed. 
 	 * 
 	 * Local anchors always shadow global anchors.
 	 * 
 	 * [SPEX-1004]
+	 * 
+	 * @return array of found anchors, array might be empty
 	 */
 	public find(pqn: PQN, context: Element = undefined, firstOnly=false): [? extends Anchor] {
 
@@ -216,6 +245,14 @@ export public class MDSpexIndex {
 			}
 		}
 		return anchors;
+	}
+	
+	get size(): int {
+		let size = 0;
+		for (let sm of this.inversedFQNsByType.values()) {
+			size += sm.size;
+		}
+		return size;
 	}
 
 }

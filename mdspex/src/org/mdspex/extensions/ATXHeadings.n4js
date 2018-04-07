@@ -40,8 +40,6 @@ export public class ATXHeading extends AbstractExtension {
 		return ExtensionEndMarker.EOL;
 	}
 	
-	
-
 	@Override
 	public get name(): string {
 		return "ATXHeading"

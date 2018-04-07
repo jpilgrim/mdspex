@@ -1,0 +1,73 @@
+import {ASTSwitch} from "org/mdspex/ASTNodes";
+import {Document} from "org/mdspex/ASTNodes";
+import {Element} from "org/mdspex/ASTNodes";
+import {LinkContext} from "org/mdspex/Extension";
+import {Link} from "org/mdspex/MDSpexIndex";
+import {Processor} from "org/mdspex/Processor";
+import {PQN} from "org/mdspex/QualifiedNames";
+
+/**
+ * Resolves link in document. This requires the index to be present, e.g.
+ * created by the IndexProcessor.
+ */
+export public class LinkProcessor extends Processor implements ASTSwitch<boolean> {
+	
+	private context: LinkContext
+	
+	/**
+	 * Converts the given document (AST) into an HTML tree.
+	 */
+	public run(document: Document) {
+		this.context = new LinkContext({
+			 currentElement: document,
+			 processorState: this.processorState
+		});
+		
+		//console.log("Index size: " + this.processorState.mdSpexIndex.size)
+			
+		this.processTree();
+	}
+	
+	/**
+	 * Recursively process the AST, current element is stored in
+	 * context.currentElement.
+	 */
+	private processTree() {
+		let traverse = this.switch(this.context.currentElement); 
+		if (traverse) {
+			if ( this.context.currentElement.nodes) {
+				for (this.context.currentElement of this.context.currentElement.nodes) {
+					this.processTree();
+				}
+			}
+		}
+	}
+	
+	@Override
+	protected caseElement(node: Element): boolean {
+//		let provider = this.processorState.outputProviders.get(node.name) || this.defaultProvider;
+//		return provider.process(this.context);
+		
+		if (node instanceof Link) {
+			const link = node as Link;
+			const anchors = this.processorState.mdSpexIndex.find(
+				PQN.parseString(link.pqn), node);
+				
+			switch (anchors.length) {
+				case 0: // TODO add warning
+					break;
+				case 1: 
+					link.targetAnchor = anchors[0]; 
+					break;
+				default: // TODO add warning
+					link.targetAnchor = anchors[0]
+			}
+		}
+		
+		
+		return true;
+	}
+	
+
+}
+

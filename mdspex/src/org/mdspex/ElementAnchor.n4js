@@ -1,9 +1,9 @@
 import {Element} from "org/mdspex/ASTNodes";
+import {normalizeSegment} from "org/mdspex/ASTNodes";
 import {Anchor} from "org/mdspex/MDSpexIndex";
 import {IDScope} from "org/mdspex/MDSpexIndex";
 import {ContainedFQN} from "org/mdspex/QualifiedNames";
-import {SegmentMap} from "org/mdspex/MDSpexIndex";
-import {normalizeSegment} from "org/mdspex/ASTNodes";
+
 /**
  * Holds all information about ID and scopes of elements.
  */

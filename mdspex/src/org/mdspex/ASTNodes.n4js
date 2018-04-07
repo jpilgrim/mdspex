@@ -1,7 +1,7 @@
 import {ElementAnchor} from "org/mdspex/ElementAnchor";
 import {ElementAnchorWithScope} from "org/mdspex/ElementAnchor";
+import {Link} from "org/mdspex/MDSpexIndex";
 import {ContainedFQN} from "org/mdspex/QualifiedNames";
-import {FQN} from "org/mdspex/QualifiedNames";
 
 
 export public function is(node: Node, name: string): boolean {
@@ -122,7 +122,7 @@ export public interface ASTSwitch<T> {
 }
 
 export public abstract class Node {
-
+	
 	@Final
 	public parent: Element;
 
@@ -174,11 +174,11 @@ const TAB = "    ";
 export public abstract class Element extends Node {
 
 	/**
-	 * Name of the element, e.g. "<br />" woud have the name "br". This is not
+	 * Name of the element, e.g. "<br />" would have the name "br". This is not
 	 * the attribute "name".
 	 */
 	@Final
-	name: string;
+	public name: string;
 
 	@Final
 	indentLevel: int;
@@ -230,13 +230,16 @@ export public abstract class Element extends Node {
 	@Override
 	public toXML(): string {
 		let parts: [string] = [];
-		parts.push("<" + this.name + (this.attributes ?
-				this.attributes.map(a => " " + a.name + '= "' + a.value + '"').join("") : ""));
-		
-		if (this.id && this.anchor) { // only printout id for anchored elements
-			parts.push(' id="' + this.id+'"');
-		}
-		
+		this.toXML_NameAndAttributes(parts);
+		this.toXML_Children(parts);
+		return parts.join("");
+	}
+	
+	/**
+	 * Called by toXML, maybe reused by sub types.
+	 * Returns ">" + child elements + "</" name + ">".
+	 */
+	protected toXML_Children(parts: [string]) {	
 		if (this.hasNodes) {
 			parts.push(">");
 			parts.push(this.nodes.map((c, i) => {
@@ -258,9 +261,22 @@ export public abstract class Element extends Node {
 		} else {
 			parts.push(" />");
 		}
-		return parts.join("");
 	}
-
+	
+	/**
+	 * Called by toXML, maybe reused by sub types.
+	 * Returns "<" + name + attributes. Closing ">" is added
+	 * by toXML_Children.
+	 */
+	protected toXML_NameAndAttributes(parts: [string]) {
+		parts.push("<" + this.name + (this.attributes ?
+				this.attributes.map(a => " " + a.name + '="' + a.value + '"').join("") : ""));
+		
+		if (this.id && this.anchor) { // only printout id for anchored elements
+			parts.push(' id="' + this.id+'"');
+		}
+	}
+	
 	/**
 	 * Returns the closest block element, either itself or container.
 	 */
@@ -293,6 +309,9 @@ export public abstract class Element extends Node {
 	}
 
 	public setAttribute(name: string, value: string) {
+		if (!this.attributes) {
+			this.attributes = [];
+		}
 		let attr = this.attributes.find(a => a.name == name);
 		if (attr) {
 			attr.value = value;
@@ -391,16 +410,41 @@ export public class CFormatting extends CDATAContainer {
 	}
 }
 
-export public class Link extends Inline {
-
-	constructor(indentLevel: int, parent: Element, targetPQN: string) {
+/**
+ * The link to an anchor. The link has an attribute "pqn", which
+ * is resolved during the link processing and then the target element
+ * is set.
+ * During post processing, the link target is set to
+ * the linked element. From that, a link test is derived for output.
+ */
+export public class LinkElement extends Inline implements Link {
+	
+	constructor(indentLevel: int, parent: Element) {
 		super("link", indentLevel, parent);
-		this.setAttribute("pqn", targetPQN);
+	}
+	
+	set pqn(pqn: string) {
+		this.setAttribute("pqn", pqn);
 	}
 
-	public resolve(fqn: FQN) {
-		this.setAttribute("fqn", fqn.toString());
+	@Override
+	public get pqn(): string {
+		return this.getAttribute("pqn");
 	}
+	
+	@Override
+	public toXML(): string {
+		let parts: [string] = [];
+		this.toXML_NameAndAttributes(parts);
+		if (this.targetAnchor instanceof ElementAnchor) {
+			let id = (this.targetAnchor as ElementAnchor).element.id;
+			parts.push(' targetAnchor="' + id + '"'
+			);
+		}
+		this.toXML_Children(parts);
+		return parts.join("");
+	}
+	
 }
 
 /**
@@ -417,6 +461,7 @@ export public class Paragraph extends CDATAContainer {
 
 @Final
 export public class CDATA extends Node {
+	
 	content = "";
 
 	@Override

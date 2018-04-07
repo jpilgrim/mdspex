@@ -1,0 +1,94 @@
+import {Element} from "org/mdspex/ASTNodes";
+import {LinkElement} from "org/mdspex/ASTNodes";
+import {ElementAnchor} from "org/mdspex/ElementAnchor";
+import {AbstractExtension} from "org/mdspex/Extension";
+import {ExtensionContext} from "org/mdspex/Extension";
+import {ExtensionEndMarker} from "org/mdspex/Extension";
+import {ExtensionType} from "org/mdspex/Extension";
+import {OutputContext} from "org/mdspex/Extension";
+import {OutputProvider} from "org/mdspex/Extension";
+import {Element as HTMLElement} from "org/mdspex/HTMLNodes";
+
+/**
+ * @req SPEX-1001
+ */
+export public class LinkExtension extends AbstractExtension {
+
+	linkProvider = new LinkProvider();
+
+	@Override
+	public get name(): string {
+		return "Link"
+	}
+
+	@Override
+	public get ctrlStart(): string {
+		return "["
+	}
+
+	@Override
+	public get ctrlEnd(): string {
+		return "]"
+	}
+	
+	@Override
+	public matchStart(context: ExtensionContext): int {
+		if (context.currentLine.startsWith(this.ctrlStart)) {
+			return 1;
+		}
+		return 0;
+	}
+
+	@Override
+	public matchEnd(context: ExtensionContext): int {
+		return this.matchStart(context);
+	}
+	
+	@Override
+	public get endMarker(): ExtensionEndMarker {
+		return ExtensionEndMarker.CTRL;
+	}
+	
+	@Override
+	public get extensionType(): ExtensionType {
+		return ExtensionType.INLINE
+	}
+
+	@Override
+	public createElement(context: ExtensionContext): Element {
+		return new LinkElement(context.indentLevel, context.currentElement);
+	}
+	
+	@Override
+	public closeElement(element: Element, context: ExtensionContext) {
+		super.closeElement(element, context);
+		
+		const linkElement = element as LinkElement;
+		linkElement.pqn = element.text;
+	}
+	
+	@Override
+	public get outputProvider(): OutputProvider {
+		return this.linkProvider; 
+	}
+	
+}
+
+class LinkProvider implements OutputProvider {
+	@Override
+	public get names(): [string] {
+		return ["link"];
+	}
+
+	@Override
+	public process(context: OutputContext): HTMLElement {
+		
+		
+		let linkElement = context.currentElement as LinkElement;
+		let htmlElement = context.factory.createElement("a");
+		let href = context.factory.createAttr("href", (linkElement.targetAnchor as ElementAnchor).element.id);
+		htmlElement.setAttributeNode(href);
+		return htmlElement;
+		
+	}
+}

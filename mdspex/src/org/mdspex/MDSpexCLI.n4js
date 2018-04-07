@@ -1,15 +1,17 @@
-import {ArgType} from "org/mdspex/CLI";
-import {CLI} from "org/mdspex/CLI";
-import {HTMLFactory} from "org/mdspex/HTMLFactory";
-import {InputSource} from "org/mdspex/InputSource";
-import {OutputProcessor} from "org/mdspex/OutputProcessor";
-import {Parser} from "org/mdspex/Parser";
-import {DefaultProcessorState} from "org/mdspex/ProcessorState";
-import {ProcessorState} from "org/mdspex/ProcessorState";
-import {VFactory} from "org/mdspex/VNodes";
 import {readFile} from "fs";
 import {writeFile} from "fs";
 import {N4Injector} from "n4js/lang/N4Injector";
+import {ArgType} from "org/mdspex/CLI";
+import {CLI} from "org/mdspex/CLI";
+import {HTMLFactory} from "org/mdspex/HTMLFactory";
+import {IndexProcessor} from "org/mdspex/IndexProcessor";
+import {InputSource} from "org/mdspex/InputSource";
+import {LinkProcessor} from "org/mdspex/LinkProcessor";
+import {OutputProcessor} from "org/mdspex/OutputProcessor";
+import {DefaultProcessorState} from "org/mdspex/ProcessorState";
+import {ProcessorState} from "org/mdspex/ProcessorState";
+import {VFactory} from "org/mdspex/VNodes";
+import {Parser} from "org/mdspex/parser/Parser";
 
 @Binder
 @Bind(ProcessorState, DefaultProcessorState)
@@ -29,6 +31,8 @@ interface ~MDSpexArgs {
 class MDSpexCLI {
 	
 	@Inject parser: Parser
+	@Inject indexProcessor: IndexProcessor;
+	@Inject linkProcessor: LinkProcessor;
 	@Inject outputProcessor: OutputProcessor;
 
 	async main(argv: [string]) {
@@ -44,10 +48,12 @@ class MDSpexCLI {
 			process.exit(1);
 		}
 		
-		
 		let inSrc = await readFile(args.inputFile, {encoding: 'utf-8'});
 		let doc = this.parser.parse(new InputSource(args.inputFile , inSrc));
-		
+		this.indexProcessor.init(this.parser.processorState);
+		this.indexProcessor.run(doc);
+		this.linkProcessor.init(this.parser.processorState);
+		this.linkProcessor.run(doc);
 		this.outputProcessor.init(this.parser.processorState);
 		let htmlnode = this.outputProcessor.out(doc);
 		

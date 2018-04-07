@@ -1,0 +1,48 @@
+import {ASTSwitch} from "org/mdspex/ASTNodes";
+import {Document} from "org/mdspex/ASTNodes";
+import {Element} from "org/mdspex/ASTNodes";
+import {LinkContext} from "org/mdspex/Extension";
+import {Processor} from "org/mdspex/Processor";
+
+
+export public class IndexProcessor extends Processor implements ASTSwitch<boolean> {
+	
+	private context: LinkContext
+	
+	/**
+	 * Converts the given document (AST) into an HTML tree.
+	 */
+	public run(document: Document) {
+		this.context = new LinkContext({
+			 currentElement: document,
+			 processorState: this.processorState
+		});
+		this.processTree();
+	}
+	
+	/**
+	 * Recursively process the AST, current element is stored in
+	 * context.currentElement.
+	 */
+	private processTree() {
+		let traverse = this.switch(this.context.currentElement); 
+		if (traverse) {
+			if ( this.context.currentElement.nodes) {
+				for (this.context.currentElement of this.context.currentElement.nodes) {
+					this.processTree();
+				}
+			}
+		}
+	}
+	
+	@Override
+	protected caseElement(node: Element): boolean {
+		if (node.anchor) {
+			this.processorState.mdSpexIndex.add(node.anchor);
+		}		
+		return true;
+	}
+	
+
+}
+

@@ -5,5 +5,7 @@ _______________________________________
 <spex>
 <h1 id="~1">SecA</h1>
 <h1 id="~2">SecB</h1>
-<link target="~1"/>
+<p>
+<link pqn="SecA" targetAnchor="~1">SecA</link>
+</p>
 </spex>

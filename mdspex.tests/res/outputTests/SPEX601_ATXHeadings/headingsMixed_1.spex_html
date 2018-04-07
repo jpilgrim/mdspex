@@ -1,3 +1,4 @@
+
 # Hello
 
 Hello World
@@ -10,4 +11,4 @@ This is even more.
 # Now
 To something different.
 _______________________________________
-<div class"spex"><h1>Hello</h1><p>Hello World</p><h2>More</h2><p>This is more.</p><h2>And</h2><p>This is even more.</p><h1>Now</h1><p>To something different.</p></div>
+<div class="spex"><h1 id="~1">Hello</h1><p id="~2">Hello World</p><h2 id="~3">More</h2><p id="~4">This is more.</p><h2 id="~5">And</h2><p id="~6">This is even more.</p><h1 id="~7">Now</h1><p id="~8">To something different.</p></div>

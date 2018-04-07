@@ -1,6 +1,5 @@
 import {Element} from "org/mdspex/ASTNodes";
 import {CatcodeMap} from "org/mdspex/Category";
-import {DefaultExtensions} from "org/mdspex/DefaultExtensions";
 import {ElementAnchorWithScope} from "org/mdspex/ElementAnchor";
 import {Extension} from "org/mdspex/Extension";
 import {ExtensionContext} from "org/mdspex/Extension";
@@ -8,7 +7,8 @@ import {ExtensionType} from "org/mdspex/Extension";
 import {OutputProvider} from "org/mdspex/Extension";
 import {InputSource} from "org/mdspex/InputSource";
 import {MDSpexIndex} from "org/mdspex/MDSpexIndex";
-import {Token} from "org/mdspex/Token";
+import {DefaultExtensions} from "org/mdspex/extensions/DefaultExtensions";
+import {Token} from "org/mdspex/parser/Token";
 
 export public interface ~ActiveExtension<T extends Element> {
 	extension: Extension;

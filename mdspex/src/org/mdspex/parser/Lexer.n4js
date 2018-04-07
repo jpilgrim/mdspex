@@ -7,9 +7,9 @@ import {InputLocation} from "org/mdspex/InputSource";
 import {Processor} from "org/mdspex/Processor";
 import {ActiveExtension} from "org/mdspex/ProcessorState";
 import {ProcessorState} from "org/mdspex/ProcessorState";
-import {CharacterToken} from "org/mdspex/Token";
-import {ExtensionToken} from "org/mdspex/Token";
-import {Token} from "org/mdspex/Token";
+import {CharacterToken} from "org/mdspex/parser/Token";
+import {ExtensionToken} from "org/mdspex/parser/Token";
+import {Token} from "org/mdspex/parser/Token";
 
 export public class Lexer extends Processor implements Iterator<Token> {
 	
